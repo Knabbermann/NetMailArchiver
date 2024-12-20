@@ -37,7 +37,6 @@
         <tbody>
             @foreach (var (obj, index) in Model.ImapInformations.Select((obj, index) => (obj, index)))
             {
-                <input type="hidden" name="id" value="@obj.Id" />
                 <tr>
                     <td width="30%">
                         @obj.Host
@@ -50,6 +49,11 @@
                     </td>
                     <td width="30%">
                         <div class="d-flex justify-content-evenly">
+                            <form asp-page="/ImapConfigs/Index" asp-route-id="@obj.Id" method="post">
+                                <button type="submit" class="btn btn-outline-primary">
+                                    <i class="bi bi-info-square"></i>&nbsp;Check Connection
+                                </button>
+                            </form>
                             <a class="btn btn-outline-secondary" asp-area="" asp-page="/ImapConfigs/Edit" asp-route-id="@obj.Id">
                                 <i class="bi bi-pencil-square"></i>&nbsp;Edit
                             </a>

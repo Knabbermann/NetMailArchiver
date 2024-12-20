@@ -21,5 +21,11 @@ namespace NetMailArchiver.Controllers
                 throw;
             }
         }
+
+        public bool IsConnectedAndAuthenticated()
+        {
+            if (_client.IsConnected && _client.IsAuthenticated) return true;
+            return false;
+        }
     }
 }

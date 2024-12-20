@@ -24,6 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\NetMailArchiver.Controllers\NetMailArchiver.Controllers.csproj" />
     <ProjectReference Include="..\NetMailArchiver.DataAccess\NetMailArchiver.DataAccess.csproj" />
   </ItemGroup>
 
