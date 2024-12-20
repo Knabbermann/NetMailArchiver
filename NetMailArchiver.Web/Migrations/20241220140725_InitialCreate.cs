@@ -12,7 +12,7 @@ namespace NetMailArchiver.Web.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "Email",
+                name: "Emails",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -26,11 +26,27 @@ namespace NetMailArchiver.Web.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Email", x => x.Id);
+                    table.PrimaryKey("PK_Emails", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
-                name: "Attachment",
+                name: "ImapInformations",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Host = table.Column<string>(type: "text", nullable: false),
+                    Port = table.Column<int>(type: "integer", nullable: false),
+                    UseSsl = table.Column<bool>(type: "boolean", nullable: false),
+                    Username = table.Column<string>(type: "text", nullable: false),
+                    Password = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ImapInformations", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Attachments",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -42,18 +58,18 @@ namespace NetMailArchiver.Web.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Attachment", x => x.Id);
+                    table.PrimaryKey("PK_Attachments", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Attachment_Email_EmailId",
+                        name: "FK_Attachments_Emails_EmailId",
                         column: x => x.EmailId,
-                        principalTable: "Email",
+                        principalTable: "Emails",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Attachment_EmailId",
-                table: "Attachment",
+                name: "IX_Attachments_EmailId",
+                table: "Attachments",
                 column: "EmailId");
         }
 
@@ -61,10 +77,13 @@ namespace NetMailArchiver.Web.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "Attachment");
+                name: "Attachments");
 
             migrationBuilder.DropTable(
-                name: "Email");
+                name: "ImapInformations");
+
+            migrationBuilder.DropTable(
+                name: "Emails");
         }
     }
 }

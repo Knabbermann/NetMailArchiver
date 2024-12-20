@@ -1,0 +1,65 @@
+﻿@page
+@model NetMailArchiver.Web.Pages.ImapConfigs.IndexModel
+@{
+}
+
+<div class="container p-3">
+    <input type="hidden" value="@Model.ImapInformations" />
+    <div class="row pt-4 align-items-center">
+        <div class="col-6">
+            <h2 class="text-primary">Mail Accounts List</h2>
+        </div>
+        <div class="col-6 text-end">
+            <a class="btn btn-outline-primary" asp-area="User" asp-page="/ImapConfigs/Add">
+                <i class="bi bi-plus-square"></i> &nbsp;Add New Mail Account
+            </a>
+        </div>
+    </div>
+    <br />
+
+    <table class="table table-bordered table-striped" style="width: 100%">
+        <thead>
+            <tr class="table-primary">
+                <th>
+                    Host
+                </th>
+                <th>
+                    Username
+                </th>
+                <th>
+                    Ssl
+                </th>
+                <th class="fst-italic">
+                    Action
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var (obj, index) in Model.ImapInformations.Select((obj, index) => (obj, index)))
+            {
+                <input type="hidden" name="id" value="@obj.Id" />
+                <tr>
+                    <td width="30%">
+                        @obj.Host
+                    </td>
+                    <td width="30%">
+                        @obj.Username
+                    </td>
+                    <td width="10%">
+                        @obj.UseSsl
+                    </td>
+                    <td width="30%">
+                        <div class="d-flex justify-content-evenly">
+                            <a class="btn btn-outline-secondary" asp-area="" asp-page="/ImapConfigs/Edit" asp-route-id="@obj.Id">
+                                <i class="bi bi-pencil-square"></i>&nbsp;Edit
+                            </a>
+                            <a class="btn btn-outline-danger" asp-area="" asp-page="/ImapConfigs/Delete" asp-route-id="@obj.Id">
+                                <i class="bi bi-x-square"></i>&nbsp;Remove
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

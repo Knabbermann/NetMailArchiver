@@ -1,7 +1,11 @@
-﻿namespace NetMailArchiver.Models
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace NetMailArchiver.Models
 {
     public class ImapInformation
     {
+        [Key]
+        public Guid Id { get; set; }
         public string Host { get; set; }
         public int Port { get; set; }
         public bool UseSsl { get; set; }

@@ -50,7 +50,7 @@ namespace NetMailArchiver.Web.Migrations
 
                     b.HasIndex("EmailId");
 
-                    b.ToTable("Attachment");
+                    b.ToTable("Attachments");
                 });
 
             modelBuilder.Entity("NetMailArchiver.Models.Email", b =>
@@ -84,7 +84,36 @@ namespace NetMailArchiver.Web.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Email");
+                    b.ToTable("Emails");
+                });
+
+            modelBuilder.Entity("NetMailArchiver.Models.ImapInformation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Host")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Password")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Port")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("UseSsl")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ImapInformations");
                 });
 
             modelBuilder.Entity("NetMailArchiver.Models.Attachment", b =>

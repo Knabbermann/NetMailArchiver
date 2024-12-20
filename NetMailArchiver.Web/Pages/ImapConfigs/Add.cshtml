@@ -1,0 +1,57 @@
+﻿@page
+@model NetMailArchiver.Web.Pages.ImapConfigs.AddModel
+@{
+}
+<div class="container p-3">
+    <form method="post">
+        <div class="row pt-4 align-items-center">
+            <div class="row pb-2">
+                <h2 class="text-primary">Add Mail Account</h2>
+                <hr />
+            </div>
+            <div asp-validation-summary="All" class="text-danger"></div>
+            <div class="form-floating py-2 col-6">
+                <input asp-for="cImapInformation.Host" class="form-control" aria-required="true" />
+                <label asp-for="cImapInformation.Host"></label>
+                <span asp-validation-for="cImapInformation.Host" class="text-danger"></span>
+            </div>
+            <div class="form-floating py-2 col-3">
+                <input asp-for="cImapInformation.Port" class="form-control" aria-required="true" />
+                <label asp-for="cImapInformation.Port"></label>
+                <span asp-validation-for="cImapInformation.Port" class="text-danger"></span>
+            </div>
+            <div class="form-floating py-2 col-3">
+                <select asp-for="cImapInformation.UseSsl" class="form-control">
+                    <option value="false" selected>No</option>
+                    <option value="true">Yes</option>
+                </select>
+                <label asp-for="cImapInformation.UseSsl">Use Ssl</label>
+                <span asp-validation-for="cImapInformation.UseSsl" class="text-danger"></span>
+            </div>
+            <div class="form-floating py-2 col-6">
+                <input asp-for="cImapInformation.Username" class="form-control" aria-required="true" />
+                <label asp-for="cImapInformation.Username"></label>
+                <span asp-validation-for="cImapInformation.Username" class="text-danger"></span>
+            </div>
+            <div class="form-floating py-2 col-6">
+                <input asp-for="cImapInformation.Password" class="form-control" autocomplete="password" aria-required="true" type="password" />
+                <label asp-for="cImapInformation.Password"></label>
+                <span asp-validation-for="cImapInformation.Password" class="text-danger"></span>
+            </div>
+            <div class="form-floating py-2 col-12">
+            </div>
+            <div class="form-floating py-2 col-6">
+                <button class="w-100 btn btn-lg btn-primary" asp-area="" asp-page="/ImapConfigs/Add">Add Mail Account</button>
+            </div>
+            <div class="form-floating py-2 col-6">
+                <a class="btn btn-outline-secondary w-100" asp-area="" asp-page="/ImapConfigs/Index">Back to list</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+
+@section Scripts
+{
+    <partial name="_ValidationScriptsPartial" />
+}
