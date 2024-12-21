@@ -11,6 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\NetMailArchiver.DataAccess\NetMailArchiver.DataAccess.csproj" />
     <ProjectReference Include="..\NetMailArchiver.Models\NetMailArchiver.Models.csproj" />
   </ItemGroup>
 

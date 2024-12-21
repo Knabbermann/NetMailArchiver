@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace NetMailArchiver.Models
 {
@@ -11,5 +12,10 @@ namespace NetMailArchiver.Models
         public bool UseSsl { get; set; }
         public string Username { get; set; }
         public string Password { get; set; }
+
+        [NotMapped]
+        public int EmailCount { get; set; }
+        [NotMapped]
+        public int AttachmentCount { get; set; }
     }
 }

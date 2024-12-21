@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace NetMailArchiver.Models
 {
@@ -20,7 +21,14 @@ namespace NetMailArchiver.Models
 
         public DateTime Date { get; set; }
 
+        public string MessageId { get; set; }
+
         public ICollection<Attachment>? Attachments { get; set; }
+
+        public ImapInformation ImapInformation { get; set; }
+
+        [ForeignKey("ImapInformation")]
+        public Guid ImapInformationId { get; set; }
     }
 
 }

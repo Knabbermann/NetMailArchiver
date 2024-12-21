@@ -32,9 +32,9 @@ namespace NetMailArchiver.Web.Pages.ImapConfigs
             var cImapController = new ImapController(cImapInformation);
             cImapController.ConnectAndAuthenticate();
             var isConnectedAndAuthenticated = cImapController.IsConnectedAndAuthenticated();
-            if (isConnectedAndAuthenticated) _toastNotification.AddSuccessToastMessage("Mail Account connection succesfull!");
+            if (isConnectedAndAuthenticated) _toastNotification.AddSuccessToastMessage("Mail Account connection successfull!");
             else _toastNotification.AddErrorToastMessage("Mail Account connection failed!");
-            
+
             return RedirectToPage();
         }
     }
