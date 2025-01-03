@@ -1,0 +1,121 @@
+﻿@page
+@model NetMailArchiver.Web.Pages.Archive.IndexModel
+@{
+}
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<div style="padding-top: 50px"></div>
+<div class="accordion" id="imapAccordion">
+    @foreach (var imapInformation in Model.ImapInformations)
+    {
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="heading_@imapInformation.Id">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse_@imapInformation.Id" aria-expanded="false" aria-controls="collapse_@imapInformation.Id">
+                    <h2 class="text-primary mb-0">@imapInformation.Username</h2>
+                </button>
+            </h2>
+            <div id="collapse_@imapInformation.Id" class="accordion-collapse collapse" aria-labelledby="heading_@imapInformation.Id" data-bs-parent="#imapAccordion">
+                <div class="accordion-body">
+                    <div id="emailTable_@imapInformation.Id">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>From</th>
+                                    <th>Subject</th>
+                                    <th class="fst-italic">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="emailTableBody_@imapInformation.Id">
+                            </tbody>
+                        </table>
+                        <div class="pagination">
+                            <div class="d-flex justify-content-between mt-3">
+                                <button class="btn btn-primary prevPage" data-imap-id="@imapInformation.Id" disabled>
+                                    <i class="bi bi-arrow-left"></i> Previous
+                                </button>
+                                <span style="padding: 10px">Page: <span id="currentPage_@imapInformation.Id">1</span></span>
+                                <button class="btn btn-primary nextPage" data-imap-id="@imapInformation.Id">
+                                    <i class="bi bi-arrow-right"></i> Next
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<script>
+    $(document).ready(function () {
+        function loadEmails(imapId, page, pageSize) {
+
+            const $tableBody = $('#emailTableBody_' + imapId);
+            const $currentPage = $('#currentPage_' + imapId);
+            const $prevPage = $('[data-imap-id="' + imapId + '"].prevPage');
+            const $nextPage = $('[data-imap-id="' + imapId + '"].nextPage');
+
+            $.ajax({
+                url: '/Archive/Index?handler=Mails',
+                type: 'GET',
+                data: { ImapId: imapId, page: page, pageSize: pageSize },
+                success: function (data) {
+                    $tableBody.empty();
+
+                    $.each(data.emails, function (index, email) {
+                        const hasAttachments = email.attachments && email.attachments.length > 0;
+                        const attachmentButton = hasAttachments
+                            ? '<button class="btn btn-link downloadAttachment" data-email-id="' + email.id + '">Download Attachments</button>'
+                            : '';
+                        $tableBody.append('<tr><td>' + email.date + '</td><td>' + email.from + '</td><td>' + email.subject + '</td>' +
+                            '<td><button class="btn btn-link openEmail" data-email-id="' + email.id + '">Open</button>' +
+                            attachmentButton + '</td></tr>'); // Der Download Button wird hier dynamisch hinzugefügt
+                    });
+
+                    $currentPage.text(page);
+
+                    $prevPage.prop('disabled', page <= 1);
+                    $nextPage.prop('disabled', !data.hasMorePages);
+                }
+            });
+        }
+
+        $('.accordion-button').on('click', function () {
+            const imapId = $(this).attr('data-bs-target').split('_')[1];
+            const $currentPage = $('#currentPage_' + imapId);
+
+            $currentPage.text(1);
+            loadEmails(imapId, 1, 10);
+        });
+
+        $(document).on('click', '.prevPage', function () {
+            const imapId = $(this).data('imap-id');
+            const currentPage = parseInt($('#currentPage_' + imapId).text(), 10);
+
+            if (currentPage > 1) {
+                loadEmails(imapId, currentPage - 1, 10);
+            }
+        });
+
+        $(document).on('click', '.nextPage', function () {
+            const imapId = $(this).data('imap-id');
+            const currentPage = parseInt($('#currentPage_' + imapId).text(), 10);
+            loadEmails(imapId, currentPage + 1, 10);
+        });
+
+        $(document).on('click', '.openEmail', function () {
+            const emailId = $(this).data('email-id');
+            const url = '/Archive/Index?handler=OpenEmail&emailId=' + emailId;
+            window.open(url, '_blank');
+        });
+
+        $(document).on('click', '.downloadAttachment', function () {
+            const emailId = $(this).data('email-id');
+            const url = '/Archive/Index?handler=DownloadAttachment&emailId=' + emailId;
+            window.location.href = url; // Anhänge herunterladen
+        });
+    });
+</script>

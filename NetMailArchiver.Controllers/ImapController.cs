@@ -4,14 +4,12 @@ using MailKit.Search;
 using MimeKit;
 using NetMailArchiver.DataAccess;
 using NetMailArchiver.Models;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace NetMailArchiver.Controllers
 {
     public class ImapController(ImapInformation imapInfomation, ApplicationDbContext? context = null)
     {
         private ImapClient _client = new ImapClient();
-
 
         public void ConnectAndAuthenticate()
         {
