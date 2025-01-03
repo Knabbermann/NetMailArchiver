@@ -65,7 +65,7 @@ namespace NetMailArchiver.Controllers
             };
         }
 
-        public Task ArchiveMailsLast30Days()
+        public Task ArchiveAllMails()
         {
             if (!IsConnectedAndAuthenticated())
                 return Task.FromException(new Exception("NotConnectedOrAuthenticated"));
@@ -76,7 +76,7 @@ namespace NetMailArchiver.Controllers
 
             var inbox = _client.Inbox;
             inbox.Open(FolderAccess.ReadOnly);
-            var uids = inbox.Search(SearchQuery.DeliveredAfter(DateTime.Today.AddDays(-30)));
+            var uids = inbox.Search(SearchQuery.All);
             foreach (var uid in uids)
             {
                 var cMail = inbox.GetMessage(uid);
@@ -99,7 +99,7 @@ namespace NetMailArchiver.Controllers
                     }).ToList(),
                     ImapInformationId = imapInfomation.Id
                 };
-                if(!cMessageIds.Contains(email.MessageId))
+                if(!cMessageIds.Contains(email.MessageId) && email.MessageId != null)
                     context.Emails.Add(email);
             }
             context.SaveChanges();

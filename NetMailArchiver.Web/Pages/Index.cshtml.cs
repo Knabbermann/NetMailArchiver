@@ -36,7 +36,7 @@ namespace NetMailArchiver.Web.Pages
             var cImapInformation = _context.ImapInformations.Single(x => x.Id.Equals(new Guid(Id)));
             var cImapController = new ImapController(cImapInformation, _context);
             cImapController.ConnectAndAuthenticate();
-            var archivedTask = cImapController.ArchiveMailsLast30Days();
+            var archivedTask = cImapController.ArchiveAllMails();
             if (archivedTask.IsCompletedSuccessfully) _toastNotification.AddSuccessToastMessage("Archived successfully!");
             else _toastNotification.AddErrorToastMessage($"Archived failed: {archivedTask.Exception}");
 
