@@ -55,10 +55,50 @@ namespace NetMailArchiver.Web.Pages.Archive
             var email = emailQuery
                 .Select(x => new
                 {
+                    x.To,
+                    x.Cc,
+                    x.Bcc,
+                    x.From,
+                    x.Subject,
+                    Date = x.Date.ToString("yyyy-MM-dd HH:mm"),
                     x.HtmlBody
                 }).First();
-            
-            return Content(email.HtmlBody, "text/html");
+
+            var fromAddress = email.From;
+            var nameStartIndex = fromAddress.IndexOf("\"") + 1;
+            var nameEndIndex = fromAddress.LastIndexOf("\"");
+            var name = nameStartIndex > 0 && nameEndIndex > 0 ? fromAddress.Substring(nameStartIndex, nameEndIndex - nameStartIndex) : fromAddress.Split('<')[0].Trim();
+            var emailAddress = fromAddress.Split('<')[1].Replace(">", "").Trim();
+
+            var emailHtml = $@"
+                <html>
+                    <head>
+                        <style>
+                            body {{ font-family: Arial, sans-serif; padding: 20px; }}
+                            .email-details {{ margin-bottom: 20px; }}
+                            .email-details th {{ text-align: left; padding-right: 10px; }}
+                            .email-details td {{ padding-bottom: 5px; }}
+                            .email-body {{ margin-top: 20px; }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class='email-details'>
+                            <table>
+                                <tr><th>From:</th><td>{name} &lt;{emailAddress}&gt;</td></tr>
+                                <tr><th>To:</th><td>{email.To}</td></tr>
+                                <tr><th>Cc:</th><td>{email.Cc}</td></tr>
+                                <tr><th>Bcc:</th><td>{email.Bcc}</td></tr>
+                                <tr><th>Subject:</th><td>{email.Subject}</td></tr>
+                                <tr><th>Date:</th><td>{email.Date}</td></tr>
+                            </table>
+                        </div>
+                        <div class='email-body'>
+                            {email.HtmlBody}
+                        </div>
+                    </body>
+                </html>";
+
+            return Content(emailHtml, "text/html; charset=utf-8");
         }
 
         public IActionResult OnGetDownloadAttachment(Guid emailId)

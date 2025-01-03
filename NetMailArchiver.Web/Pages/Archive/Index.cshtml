@@ -72,7 +72,7 @@
                             : '';
                         $tableBody.append('<tr><td>' + email.date + '</td><td>' + email.from + '</td><td>' + email.subject + '</td>' +
                             '<td><button class="btn btn-link openEmail" data-email-id="' + email.id + '">Open</button>' +
-                            attachmentButton + '</td></tr>'); // Der Download Button wird hier dynamisch hinzugefügt
+                            attachmentButton + '</td></tr>');
                     });
 
                     $currentPage.text(page);
@@ -115,7 +115,7 @@
         $(document).on('click', '.downloadAttachment', function () {
             const emailId = $(this).data('email-id');
             const url = '/Archive/Index?handler=DownloadAttachment&emailId=' + emailId;
-            window.location.href = url; // Anhänge herunterladen
+            window.location.href = url;
         });
     });
 </script>
