@@ -51,15 +51,72 @@
                     </td>
                     <td width="30%">
                         <div class="d-flex justify-content-evenly">
-                            <form asp-page="/Index" asp-route-id="@obj.Id" method="post">
-                                <button type="submit" class="btn btn-outline-primary">
-                                    <i class="bi bi-info-square"></i>&nbsp;Archive all Mails
-                                </button>
-                            </form>
+                            <button class="btn btn-outline-primary archive-btn" data-id="@obj.Id">
+                                <i class="bi bi-info-square"></i>&nbsp;Archive all Mails
+                            </button>
                         </div>
                     </td>
                 </tr>
             }
         </tbody>
     </table>
+    <div class="progress mt-4" style="height: 20px; display: none;">
+        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;">0%</div>
+    </div>
 </div>
+
+<script>
+    $(document).ready(function() {
+        $(".archive-btn").on("click", function() {
+            const imapId = $(this).data("id");
+            const $button = $(this);
+            $button.prop("disabled", true); 
+            $(".progress").show();
+            $("#progressBar").css("width", "0%").text("0%");
+            archiveMails(imapId, $button);
+        });
+    });
+
+    function archiveMails(imapId, $button) {
+        $.ajax({
+            url: '/Index?id=' + imapId + '&handler=ArchiveMails',
+            type: 'GET',
+            success: function(response) {
+                getProgress(imapId, $button);
+            },
+            error: function(xhr, status, error) {
+                $(".progress").hide();
+                console.error("Failed to start archive process:", xhr.responseText);
+                $button.prop("disabled", false); 
+            }
+        });
+    }
+
+    function getProgress(imapId, $button) {
+        $.ajax({
+            url: '/Index?id=' + imapId + '&handler=ArchiveProgress',
+            type: 'GET',
+            success: function(progress) {
+                const progressPercentage = progress + "%";
+                $("#progressBar").css("width", progressPercentage).text(progressPercentage);
+
+                if (progress < 100) {
+                    setTimeout(function() {
+                        getProgress(imapId, $button);
+                    }, 1000);
+                } else {
+                    $(".progress").hide();
+                    alert("Archive process completed!");
+                    $button.prop("disabled", false);
+                }
+            },
+            error: function(xhr, status, error) {
+                $(".progress").hide();
+                console.error("Failed to get progress:", xhr.responseText);
+                alert("Failed to get progress.");
+                $button.prop("disabled", false);
+            }
+        });
+    }
+</script>
+

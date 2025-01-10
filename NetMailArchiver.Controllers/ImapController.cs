@@ -1,6 +1,7 @@
 ﻿using MailKit;
 using MailKit.Net.Imap;
 using MailKit.Search;
+using Microsoft.EntityFrameworkCore;
 using MimeKit;
 using NetMailArchiver.DataAccess;
 using NetMailArchiver.Models;
@@ -65,20 +66,33 @@ namespace NetMailArchiver.Controllers
             };
         }
 
-        public Task ArchiveAllMails()
+        public async Task ArchiveAllMails(IProgress<int> progress, CancellationToken cancellationToken)
         {
             if (!IsConnectedAndAuthenticated())
-                return Task.FromException(new Exception("NotConnectedOrAuthenticated"));
+                throw new Exception("NotConnectedOrAuthenticated");
             if (context == null)
-                return Task.FromException(new Exception("NoContext"));
+                throw new Exception("NoContext");
 
-            var cMessageIds = context.Emails.Where(e => e.ImapInformationId == imapInfomation.Id).Select(e => e.MessageId).ToList();
+            var cMessageIds = await context.Emails
+                .Where(e => e.ImapInformationId == imapInfomation.Id)
+                .Select(e => e.MessageId)
+                .ToListAsync(cancellationToken);
 
             var inbox = _client.Inbox;
             inbox.Open(FolderAccess.ReadOnly);
             var uids = inbox.Search(SearchQuery.All);
+
+            var batchSize = 10;
+            var emailBatch = new List<Email>();
+            int totalProcessed = 0;
+            int totalProcessedPercent = 0;
+            int totalNew = 0;
+
             foreach (var uid in uids)
             {
+                if (cancellationToken.IsCancellationRequested)
+                    break;
+
                 var cMail = inbox.GetMessage(uid);
                 var email = new Email
                 {
@@ -99,12 +113,38 @@ namespace NetMailArchiver.Controllers
                     }).ToList(),
                     ImapInformationId = imapInfomation.Id
                 };
-                if(!cMessageIds.Contains(email.MessageId) && email.MessageId != null)
-                    context.Emails.Add(email);
+
+                totalProcessed++;
+
+                if (!cMessageIds.Contains(email.MessageId) && email.MessageId != null)
+                {
+                    emailBatch.Add(email);
+                    totalNew++;
+                }
+
+                // Wenn die Batch-Größe erreicht ist, speichern und Fortschritt melden
+                if (emailBatch.Count >= batchSize)
+                {
+                    context.Emails.AddRange(emailBatch);
+                    await context.SaveChangesAsync(cancellationToken);
+                    emailBatch.Clear();
+                }
+
+                totalProcessedPercent = (int)Math.Round((double)totalProcessed / uids.Count * 100);
+                // Abschlussfortschritt melden
+                progress?.Report(totalProcessedPercent);
             }
-            context.SaveChanges();
-            return Task.CompletedTask;
+
+            // Reste speichern
+            if (emailBatch.Any())
+            {
+                context.Emails.AddRange(emailBatch);
+                await context.SaveChangesAsync(cancellationToken);
+            }
+
+            progress?.Report(100);
         }
+
 
         private byte[] GetAttachmentData(MimePart attachment)
         {

@@ -4,18 +4,23 @@ using NetMailArchiver.Controllers;
 using NetMailArchiver.DataAccess;
 using NetMailArchiver.Models;
 using NToastNotify;
+using System.Collections.Concurrent;
 
 namespace NetMailArchiver.Web.Pages
 {
     public class IndexModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly IServiceProvider _serviceProvider;
         private readonly IToastNotification _toastNotification;
+        private static ConcurrentDictionary<string, int> ProgressDictionary = new ConcurrentDictionary<string, int>();
 
         public IndexModel(ApplicationDbContext context,
+            IServiceProvider serviceProvider,
             IToastNotification toastNotification)
         {
             _context = context;
+            _serviceProvider = serviceProvider;
             _toastNotification = toastNotification;
         }
 
@@ -31,16 +36,51 @@ namespace NetMailArchiver.Web.Pages
             }
         }
 
-        public IActionResult OnPost(string Id)
+        public IActionResult OnGetArchiveMails(string id)
         {
-            var cImapInformation = _context.ImapInformations.Single(x => x.Id.Equals(new Guid(Id)));
+            var cImapInformation = _context.ImapInformations.Single(x => x.Id.Equals(new Guid(id)));
             var cImapController = new ImapController(cImapInformation, _context);
-            cImapController.ConnectAndAuthenticate();
-            var archivedTask = cImapController.ArchiveAllMails();
-            if (archivedTask.IsCompletedSuccessfully) _toastNotification.AddSuccessToastMessage("Archived successfully!");
-            else _toastNotification.AddErrorToastMessage($"Archived failed: {archivedTask.Exception}");
 
-            return RedirectToPage();
+            // Fortschrittsinitialisierung
+            ProgressDictionary[id] = 0;
+
+            Task.Run(async () =>
+            {
+                using (var scope = _serviceProvider.CreateScope())
+                {
+                    var scopedContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    var cImapControllerInTask = new ImapController(cImapInformation, scopedContext);
+
+                    try
+                    {
+                        cImapControllerInTask.ConnectAndAuthenticate();
+                        await cImapControllerInTask.ArchiveAllMails(new Progress<int>(progress =>
+                        {
+                            ProgressDictionary[id] = progress;
+                        }), CancellationToken.None);
+
+                        ProgressDictionary[id] = 100;
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log exception
+                        _toastNotification.AddErrorToastMessage(ex.Message);
+                        ProgressDictionary[id] = -1; // Optional: Fehlerstatus
+                    }
+                }
+            });
+
+            return new JsonResult(new { status = "started" });
+        }
+
+
+        public IActionResult OnGetArchiveProgress(string id)
+        {
+            if (ProgressDictionary.TryGetValue(id, out var progress))
+            {
+                return new JsonResult(progress);
+            }
+            return new JsonResult(0);
         }
     }
 }
