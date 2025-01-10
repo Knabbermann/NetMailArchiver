@@ -51,8 +51,11 @@
                     </td>
                     <td width="30%">
                         <div class="d-flex justify-content-evenly">
-                            <button class="btn btn-outline-primary archive-btn" data-id="@obj.Id">
+                            <button class="btn btn-outline-primary archive-all-btn" data-id="@obj.Id">
                                 <i class="bi bi-info-square"></i>&nbsp;Archive all Mails
+                            </button>
+                            <button class="btn btn-outline-primary archive-new-btn" data-id="@obj.Id">
+                                <i class="bi bi-info-square"></i>&nbsp;Archive new Mails
                             </button>
                         </div>
                     </td>
@@ -67,19 +70,30 @@
 
 <script>
     $(document).ready(function() {
-        $(".archive-btn").on("click", function() {
+        $(".archive-all-btn").on("click", function() {
             const imapId = $(this).data("id");
             const $button = $(this);
             $button.prop("disabled", true); 
             $(".progress").show();
             $("#progressBar").css("width", "0%").text("0%");
-            archiveMails(imapId, $button);
+            archiveAllMails(imapId, $button);
         });
     });
 
-    function archiveMails(imapId, $button) {
+    $(document).ready(function() {
+        $(".archive-new-btn").on("click", function() {
+            const imapId = $(this).data("id");
+            const $button = $(this);
+            $button.prop("disabled", true);
+            $(".progress").show();
+            $("#progressBar").css("width", "0%").text("0%");
+            archiveNewMails(imapId, $button);
+        });
+    });
+
+    function archiveAllMails(imapId, $button) {
         $.ajax({
-            url: '/Index?id=' + imapId + '&handler=ArchiveMails',
+            url: '/Index?id=' + imapId + '&handler=ArchiveAllMails',
             type: 'GET',
             success: function(response) {
                 getProgress(imapId, $button);
@@ -88,6 +102,21 @@
                 $(".progress").hide();
                 console.error("Failed to start archive process:", xhr.responseText);
                 $button.prop("disabled", false); 
+            }
+        });
+    }
+
+    function archiveNewMails(imapId, $button) {
+        $.ajax({
+            url: '/Index?id=' + imapId + '&handler=ArchiveNewMails',
+            type: 'GET',
+            success: function(response) {
+                getProgress(imapId, $button);
+            },
+            error: function(xhr, status, error) {
+                $(".progress").hide();
+                console.error("Failed to start archive process:", xhr.responseText);
+                $button.prop("disabled", false);
             }
         });
     }

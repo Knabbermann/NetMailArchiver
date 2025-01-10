@@ -36,12 +36,46 @@ namespace NetMailArchiver.Web.Pages
             }
         }
 
-        public IActionResult OnGetArchiveMails(string id)
+        public IActionResult OnGetArchiveNewMails(string id)
         {
             var cImapInformation = _context.ImapInformations.Single(x => x.Id.Equals(new Guid(id)));
             var cImapController = new ImapController(cImapInformation, _context);
 
-            // Fortschrittsinitialisierung
+            ProgressDictionary[id] = 0;
+
+            Task.Run(async () =>
+            {
+                using (var scope = _serviceProvider.CreateScope())
+                {
+                    var scopedContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    var cImapControllerInTask = new ImapController(cImapInformation, scopedContext);
+
+                    try
+                    {
+                        cImapControllerInTask.ConnectAndAuthenticate();
+                        await cImapControllerInTask.ArchiveNewMails(new Progress<int>(progress =>
+                        {
+                            ProgressDictionary[id] = progress;
+                        }), CancellationToken.None);
+
+                        ProgressDictionary[id] = 100;
+                    }
+                    catch (Exception ex)
+                    {
+                        _toastNotification.AddErrorToastMessage(ex.Message);
+                        ProgressDictionary[id] = -1; // Optional: Fehlerstatus
+                    }
+                }
+            });
+
+            return new JsonResult(new { status = "started" });
+        }
+
+        public IActionResult OnGetArchiveAllMails(string id)
+        {
+            var cImapInformation = _context.ImapInformations.Single(x => x.Id.Equals(new Guid(id)));
+            var cImapController = new ImapController(cImapInformation, _context);
+
             ProgressDictionary[id] = 0;
 
             Task.Run(async () =>
@@ -63,7 +97,6 @@ namespace NetMailArchiver.Web.Pages
                     }
                     catch (Exception ex)
                     {
-                        // Log exception
                         _toastNotification.AddErrorToastMessage(ex.Message);
                         ProgressDictionary[id] = -1; // Optional: Fehlerstatus
                     }
