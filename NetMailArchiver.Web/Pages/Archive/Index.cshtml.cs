@@ -25,11 +25,17 @@ namespace NetMailArchiver.Web.Pages.Archive
             ImapInformations = _context.ImapInformations.ToList();
         }
 
-        public JsonResult OnGetMails([FromQuery] Guid ImapId, [FromQuery] int page, [FromQuery] int pageSize)
+        public JsonResult OnGetMails([FromQuery] Guid ImapId, [FromQuery] int page, [FromQuery] int pageSize, [FromQuery] string searchQuery = "")
         {
             if(page < 1) page = 1;
 
             var emailsQuery = _context.Emails.Where(x => x.ImapInformationId == ImapId);
+
+            if (!string.IsNullOrEmpty(searchQuery))
+            {
+                emailsQuery = emailsQuery.Where(e => e.Subject.Contains(searchQuery) || e.From.Contains(searchQuery));
+            }
+
             var emails = emailsQuery
                 .OrderByDescending(x => x.Date)
                 .Skip((page - 1) * pageSize)

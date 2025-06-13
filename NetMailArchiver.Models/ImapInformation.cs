@@ -13,6 +13,9 @@ namespace NetMailArchiver.Models
         public string Username { get; set; }
         public string Password { get; set; }
 
+        public bool AutoArchive { get; set; }
+        public int ArchiveInterval { get; set; }
+
         [NotMapped]
         public int EmailCount { get; set; }
         [NotMapped]

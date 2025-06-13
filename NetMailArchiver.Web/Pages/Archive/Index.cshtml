@@ -12,11 +12,17 @@
         <div class="accordion-item">
             <h2 class="accordion-header" id="heading_@imapInformation.Id">
                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse_@imapInformation.Id" aria-expanded="false" aria-controls="collapse_@imapInformation.Id">
-                    <h2 class="text-primary mb-0">@imapInformation.Username</h2>
+                    <h2 class="text-info mb-0">@imapInformation.Username</h2>
                 </button>
             </h2>
             <div id="collapse_@imapInformation.Id" class="accordion-collapse collapse" aria-labelledby="heading_@imapInformation.Id" data-bs-parent="#imapAccordion">
                 <div class="accordion-body">
+                    <div class="mb-3">
+                        <input type="text" class="form-control search-input" id="searchInput_@imapInformation.Id" placeholder="Search emails..." />
+                        <button class="btn btn-info mt-2 searchEmail" data-imap-id="@imapInformation.Id">
+                            Search
+                        </button>
+                    </div>
                     <div id="emailTable_@imapInformation.Id">
                         <table class="table table-striped">
                             <thead>
@@ -32,11 +38,11 @@
                         </table>
                         <div class="pagination">
                             <div class="d-flex justify-content-between mt-3">
-                                <button class="btn btn-primary prevPage" data-imap-id="@imapInformation.Id" disabled>
+                                <button class="btn btn-info prevPage" data-imap-id="@imapInformation.Id" disabled>
                                     <i class="bi bi-arrow-left"></i> Previous
                                 </button>
                                 <span style="padding: 10px">Page: <span id="currentPage_@imapInformation.Id">1</span></span>
-                                <button class="btn btn-primary nextPage" data-imap-id="@imapInformation.Id">
+                                <button class="btn btn-info nextPage" data-imap-id="@imapInformation.Id">
                                     <i class="bi bi-arrow-right"></i> Next
                                 </button>
                             </div>
@@ -51,7 +57,7 @@
 
 <script>
     $(document).ready(function () {
-        function loadEmails(imapId, page, pageSize) {
+        function loadEmails(imapId, page, pageSize, searchQuery) {
 
             const $tableBody = $('#emailTableBody_' + imapId);
             const $currentPage = $('#currentPage_' + imapId);
@@ -61,7 +67,7 @@
             $.ajax({
                 url: '/Archive/Index?handler=Mails',
                 type: 'GET',
-                data: { ImapId: imapId, page: page, pageSize: pageSize },
+                data: { ImapId: imapId, page: page, pageSize: pageSize, searchQuery: searchQuery },
                 success: function (data) {
                     $tableBody.empty();
 
@@ -116,6 +122,12 @@
             const emailId = $(this).data('email-id');
             const url = '/Archive/Index?handler=DownloadAttachment&emailId=' + emailId;
             window.location.href = url;
+        });
+
+        $(document).on('click', '.searchEmail', function () {
+            const imapId = $(this).data('imap-id');
+            const searchQuery = $('#searchInput_' + imapId).val();
+            loadEmails(imapId, 1, 10, searchQuery);
         });
     });
 </script>

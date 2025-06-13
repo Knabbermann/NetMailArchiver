@@ -7,10 +7,10 @@
     <input type="hidden" value="@Model.ImapInformations" />
     <div class="row pt-4 align-items-center">
         <div class="col-6">
-            <h2 class="text-primary">Mail Accounts List</h2>
+            <h2 class="text-info">Mail Accounts List</h2>
         </div>
         <div class="col-6 text-end">
-            <a class="btn btn-outline-primary" asp-area="User" asp-page="/ImapConfigs/Add">
+            <a class="btn btn-outline-info" asp-area="User" asp-page="/ImapConfigs/Add">
                 <i class="bi bi-plus-square"></i> &nbsp;Add New Mail Account
             </a>
         </div>
@@ -19,7 +19,7 @@
 
     <table class="table table-bordered table-striped" style="width: 100%">
         <thead>
-            <tr class="table-primary">
+            <tr class="table-info">
                 <th>
                     Host
                 </th>
@@ -50,7 +50,7 @@
                     <td width="30%">
                         <div class="d-flex justify-content-evenly">
                             <form asp-page="/ImapConfigs/Index" asp-route-id="@obj.Id" method="post">
-                                <button type="submit" class="btn btn-outline-primary">
+                                <button type="submit" class="btn btn-outline-info">
                                     <i class="bi bi-info-square"></i>&nbsp;Check Connection
                                 </button>
                             </form>

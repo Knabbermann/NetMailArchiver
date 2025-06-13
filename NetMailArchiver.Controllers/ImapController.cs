@@ -1,50 +1,80 @@
 ﻿using MailKit;
 using MailKit.Net.Imap;
 using MailKit.Search;
+using MailKit.Security;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using MimeKit;
 using NetMailArchiver.DataAccess;
 using NetMailArchiver.Models;
+using OpenTelemetry.Trace;
 
 namespace NetMailArchiver.Controllers
 {
-    public class ImapController(ImapInformation imapInfomation, ApplicationDbContext? context = null)
+    public class ImapController(ImapInformation imapInformation, ApplicationDbContext? context = null, ILogger<ImapController>? logger = null)
     {
-        private ImapClient _client = new ImapClient();
+        private readonly ILogger<ImapController> _logger = logger ?? NullLogger<ImapController>.Instance;
+        private readonly ImapClient _client = new();
 
         public void ConnectAndAuthenticate()
         {
-            if (_client.IsConnected && _client.IsAuthenticated) return;
-            
+            var tracer = TracerProvider.Default.GetTracer("NetMailArchiver");
+
+            using var span = tracer.StartActiveSpan("IMAP ConnectAndAuthenticate");
             try
             {
-                _client.Connect(imapInfomation.Host, imapInfomation.Port, imapInfomation.UseSsl ? MailKit.Security.SecureSocketOptions.SslOnConnect : MailKit.Security.SecureSocketOptions.StartTls);
-                _client.Authenticate(imapInfomation.Username, imapInfomation.Password);
+                if (_client is { IsConnected: true, IsAuthenticated: true })
+                {
+                    _logger.LogInformation("IMAP bereits verbunden und authentifiziert für Host: {Host}", imapInformation.Host);
+                    span.SetAttribute("status", "already connected");
+                    return;
+                }
+
+                _logger.LogInformation("Verbinde mit IMAP-Server {Host}:{Port} mit SSL={UseSsl}", imapInformation.Host, imapInformation.Port, imapInformation.UseSsl);
+                _client.Connect(imapInformation.Host, imapInformation.Port,
+                    imapInformation.UseSsl ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls);
+
+                _client.Authenticate(imapInformation.Username, imapInformation.Password);
+                _logger.LogInformation("Erfolgreich authentifiziert bei IMAP-Server {Host} als {User}", imapInformation.Host, imapInformation.Username);
+
+                span.SetAttribute("status", "success");
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Fehler beim Verbinden/Authentifizieren mit IMAP");
+                span.SetAttribute("status", "error");
+                span.RecordException(ex);
                 throw;
             }
         }
 
         public bool IsConnectedAndAuthenticated()
         {
-            if (_client.IsConnected && _client.IsAuthenticated) return true;
-            return false;
+            return _client is { IsConnected: true, IsAuthenticated: true };
         }
 
         public void GetLatestEmail()
         {
             if (!IsConnectedAndAuthenticated())
+            {
+                _logger.LogWarning("GetLatestEmail aufgerufen, aber IMAP ist nicht verbunden/authentifiziert.");
                 return;
+            }
 
             var inbox = _client.Inbox;
             inbox.Open(FolderAccess.ReadOnly);
+            _logger.LogInformation("Inbox geöffnet. Anzahl vorhandener Mails: {Count}", inbox.Count);
 
             if (inbox.Count == 0)
+            {
+                _logger.LogInformation("Inbox ist leer. Keine E-Mail zum Abrufen vorhanden.");
                 return;
+            }
 
             var cMail = inbox.GetMessage(inbox.Count - 1);
+            _logger.LogInformation("Neueste E-Mail geladen. Betreff: {Subject}, Absender: {From}", cMail.Subject, string.Join(", ", cMail.From));
+
             var email = new Email
             {
                 Subject = cMail.Subject,
@@ -62,23 +92,29 @@ namespace NetMailArchiver.Controllers
                     FileSize = a.ContentDisposition?.Size ?? 0,
                     FileData = GetAttachmentData(a),
                 }).ToList(),
-                ImapInformationId = imapInfomation.Id
+                ImapInformationId = imapInformation.Id
             };
+
+            _logger.LogInformation("E-Mail erfolgreich verarbeitet mit {AttachmentCount} Anhängen.", email.Attachments.Count);
         }
 
         public async Task ArchiveNewMails(IProgress<int> progress, CancellationToken cancellationToken)
         {
             if (!IsConnectedAndAuthenticated())
                 throw new Exception("NotConnectedOrAuthenticated");
+
             if (context == null)
                 throw new Exception("NoContext");
+
+            _logger.LogInformation("Starte Archivierung neuer E-Mails für {User}@{Host}", imapInformation.Username, imapInformation.Host);
+
             var cMessageIds = await context.Emails
-                .Where(e => e.ImapInformationId == imapInfomation.Id)
+                .Where(e => e.ImapInformationId == imapInformation.Id)
                 .Select(e => e.MessageId)
                 .ToListAsync(cancellationToken);
 
             var lastArchivedMailDate = await context.Emails
-                .Where(e => e.ImapInformationId == imapInfomation.Id)
+                .Where(e => e.ImapInformationId == imapInformation.Id)
                 .OrderByDescending(e => e.Date)
                 .Select(e => e.Date)
                 .FirstOrDefaultAsync(cancellationToken);
@@ -86,19 +122,24 @@ namespace NetMailArchiver.Controllers
             var inbox = _client.Inbox;
             inbox.Open(FolderAccess.ReadOnly);
 
+            _logger.LogInformation("Suche nach E-Mails nach {LastDate}", lastArchivedMailDate);
             var uids = inbox.Search(SearchQuery.DeliveredAfter(lastArchivedMailDate));
 
             var batchSize = 10;
             var emailBatch = new List<Email>();
             int totalProcessed = 0;
-            int totalProcessedPercent = 0;
-            int totalNew = 0;
 
             foreach (var uid in uids)
             {
                 if (cancellationToken.IsCancellationRequested)
+                {
+                    _logger.LogWarning("Archivierung abgebrochen.");
                     break;
+                }
+
                 var cMail = inbox.GetMessage(uid);
+                _logger.LogDebug("Verarbeite Nachricht UID {UID} - Betreff: {Subject}", uid, cMail.Subject);
+
                 var email = new Email
                 {
                     Subject = cMail.Subject,
@@ -116,7 +157,7 @@ namespace NetMailArchiver.Controllers
                         FileSize = a.ContentDisposition?.Size ?? 0,
                         FileData = GetAttachmentData(a),
                     }).ToList(),
-                    ImapInformationId = imapInfomation.Id
+                    ImapInformationId = imapInformation.Id
                 };
 
                 totalProcessed++;
@@ -124,27 +165,29 @@ namespace NetMailArchiver.Controllers
                 if (!cMessageIds.Contains(email.MessageId) && email.MessageId != null)
                 {
                     emailBatch.Add(email);
-                    totalNew++;
+                    _logger.LogDebug("Neue E-Mail zur Batch hinzugefügt. MessageId: {MessageId}", email.MessageId);
                 }
 
-                // Wenn die Batch-Größe erreicht ist, speichern und Fortschritt melden
                 if (emailBatch.Count >= batchSize)
                 {
+                    _logger.LogInformation("Speichere Batch mit {Count} E-Mails...", emailBatch.Count);
                     context.Emails.AddRange(emailBatch);
                     await context.SaveChangesAsync(cancellationToken);
                     emailBatch.Clear();
                 }
-                totalProcessedPercent = (int)Math.Round((double)totalProcessed / uids.Count * 100);
+
+                int totalProcessedPercent = (int)Math.Round((double)totalProcessed / uids.Count * 100);
                 progress?.Report(totalProcessedPercent);
             }
 
-            // Reste speichern
             if (emailBatch.Any())
             {
+                _logger.LogInformation("Speichere verbleibende {Count} E-Mails...", emailBatch.Count);
                 context.Emails.AddRange(emailBatch);
                 await context.SaveChangesAsync(cancellationToken);
             }
 
+            _logger.LogInformation("Archivierung neuer E-Mails abgeschlossen.");
             progress?.Report(100);
         }
 
@@ -152,11 +195,14 @@ namespace NetMailArchiver.Controllers
         {
             if (!IsConnectedAndAuthenticated())
                 throw new Exception("NotConnectedOrAuthenticated");
+
             if (context == null)
                 throw new Exception("NoContext");
 
+            _logger.LogInformation("Starte vollständige Archivierung aller E-Mails für {User}@{Host}", imapInformation.Username, imapInformation.Host);
+
             var cMessageIds = await context.Emails
-                .Where(e => e.ImapInformationId == imapInfomation.Id)
+                .Where(e => e.ImapInformationId == imapInformation.Id)
                 .Select(e => e.MessageId)
                 .ToListAsync(cancellationToken);
 
@@ -167,15 +213,18 @@ namespace NetMailArchiver.Controllers
             var batchSize = 10;
             var emailBatch = new List<Email>();
             int totalProcessed = 0;
-            int totalProcessedPercent = 0;
-            int totalNew = 0;
 
             foreach (var uid in uids)
             {
                 if (cancellationToken.IsCancellationRequested)
+                {
+                    _logger.LogWarning("Archivierung abgebrochen.");
                     break;
+                }
 
                 var cMail = inbox.GetMessage(uid);
+                _logger.LogDebug("Verarbeite Nachricht UID {UID} - Betreff: {Subject}", uid, cMail.Subject);
+
                 var email = new Email
                 {
                     Subject = cMail.Subject,
@@ -193,7 +242,7 @@ namespace NetMailArchiver.Controllers
                         FileSize = a.ContentDisposition?.Size ?? 0,
                         FileData = GetAttachmentData(a),
                     }).ToList(),
-                    ImapInformationId = imapInfomation.Id
+                    ImapInformationId = imapInformation.Id
                 };
 
                 totalProcessed++;
@@ -201,44 +250,37 @@ namespace NetMailArchiver.Controllers
                 if (!cMessageIds.Contains(email.MessageId) && email.MessageId != null)
                 {
                     emailBatch.Add(email);
-                    totalNew++;
+                    _logger.LogDebug("Neue E-Mail zur Batch hinzugefügt. MessageId: {MessageId}", email.MessageId);
                 }
 
-                // Wenn die Batch-Größe erreicht ist, speichern und Fortschritt melden
                 if (emailBatch.Count >= batchSize)
                 {
+                    _logger.LogInformation("Speichere Batch mit {Count} E-Mails...", emailBatch.Count);
                     context.Emails.AddRange(emailBatch);
                     await context.SaveChangesAsync(cancellationToken);
                     emailBatch.Clear();
                 }
 
-                totalProcessedPercent = (int)Math.Round((double)totalProcessed / uids.Count * 100);
-                // Abschlussfortschritt melden
+                int totalProcessedPercent = (int)Math.Round((double)totalProcessed / uids.Count * 100);
                 progress?.Report(totalProcessedPercent);
             }
 
-            // Reste speichern
             if (emailBatch.Any())
             {
+                _logger.LogInformation("Speichere verbleibende {Count} E-Mails...", emailBatch.Count);
                 context.Emails.AddRange(emailBatch);
                 await context.SaveChangesAsync(cancellationToken);
             }
 
+            _logger.LogInformation("Archivierung aller E-Mails abgeschlossen.");
             progress?.Report(100);
         }
 
-        private void Archive(List<string>? cMessageIds, IList<UniqueId> uids)
-        { 
-        }
-
-
         private byte[] GetAttachmentData(MimePart attachment)
         {
-            using (var memoryStream = new MemoryStream())
-            {
-                attachment.Content.DecodeTo(memoryStream);
-                return memoryStream.ToArray();
-            }
+            using var memoryStream = new MemoryStream();
+            attachment.Content.DecodeTo(memoryStream);
+            return memoryStream.ToArray();
         }
     }
 }

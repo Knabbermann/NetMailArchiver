@@ -42,6 +42,7 @@ namespace NetMailArchiver.Web.Pages
             var cImapController = new ImapController(cImapInformation, _context);
 
             ProgressDictionary[id] = 0;
+            _toastNotification.AddInfoToastMessage("Started archiving new mails.");
 
             Task.Run(async () =>
             {
@@ -65,6 +66,7 @@ namespace NetMailArchiver.Web.Pages
                         _toastNotification.AddErrorToastMessage(ex.Message);
                         ProgressDictionary[id] = -1; // Optional: Fehlerstatus
                     }
+                    _toastNotification.AddSuccessToastMessage("Finished archiving new mails.");
                 }
             });
 
@@ -77,6 +79,7 @@ namespace NetMailArchiver.Web.Pages
             var cImapController = new ImapController(cImapInformation, _context);
 
             ProgressDictionary[id] = 0;
+            _toastNotification.AddInfoToastMessage("Started archiving all mails.");
 
             Task.Run(async () =>
             {
@@ -100,6 +103,7 @@ namespace NetMailArchiver.Web.Pages
                         _toastNotification.AddErrorToastMessage(ex.Message);
                         ProgressDictionary[id] = -1; // Optional: Fehlerstatus
                     }
+                    _toastNotification.AddInfoToastMessage("Finished archiving all mails.");
                 }
             });
 
