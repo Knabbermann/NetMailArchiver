@@ -1,39 +1,32 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using NetMailArchiver.Controllers;
+using NetMailArchiver.Services;
 using NetMailArchiver.DataAccess;
 using NetMailArchiver.Models;
 using NToastNotify;
 
 namespace NetMailArchiver.Web.Pages.ImapConfigs
 {
-    public class IndexModel : PageModel
+    public class IndexModel(ArchiveLockService archiveLockService,
+        ApplicationDbContext context,
+        IToastNotification toastNotification)
+        : PageModel
     {
-        private readonly ApplicationDbContext _context;
-        private readonly IToastNotification _toastNotification;
-
-        public IndexModel(ApplicationDbContext context,
-            IToastNotification toastNotification)
-        {
-            _context = context;
-            _toastNotification = toastNotification;
-        }
-
         public IEnumerable<ImapInformation> ImapInformations { get; set; }
 
         public void OnGet()
         {
-            ImapInformations = _context.ImapInformations.ToList();
+            ImapInformations = context.ImapInformations.ToList();
         }
 
-        public IActionResult OnPost(string Id)
+        public IActionResult OnPost(string id)
         {
-            var cImapInformation = _context.ImapInformations.Single(x => x.Id.Equals(new Guid(Id)));
-            var cImapController = new ImapController(cImapInformation);
-            cImapController.ConnectAndAuthenticate();
-            var isConnectedAndAuthenticated = cImapController.IsConnectedAndAuthenticated();
-            if (isConnectedAndAuthenticated) _toastNotification.AddSuccessToastMessage("Mail Account connection successfull!");
-            else _toastNotification.AddErrorToastMessage("Mail Account connection failed!");
+            var cImapInformation = context.ImapInformations.Single(x => x.Id.Equals(new Guid(id)));
+            var cImapService = new ImapService(archiveLockService, cImapInformation);
+            cImapService.ConnectAndAuthenticate();
+            var isConnectedAndAuthenticated = cImapService.IsConnectedAndAuthenticated();
+            if (isConnectedAndAuthenticated) toastNotification.AddSuccessToastMessage("Mail Account connection successfull!");
+            else toastNotification.AddErrorToastMessage("Mail Account connection failed!");
 
             return RedirectToPage();
         }

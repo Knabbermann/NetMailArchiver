@@ -1,12 +1,27 @@
 using Microsoft.EntityFrameworkCore;
+using NetMailArchiver.Services;
 using NetMailArchiver.DataAccess;
 using NToastNotify;
+using Quartz;
 
 var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql("Host=192.168.178.82;Database=NetMailArchiver;Username=postgres;Password=postgres",
+    options.UseNpgsql("Host=localhost;Database=NetMailArchiver;Username=postgres;Password=postgres",
         b => b.MigrationsAssembly("NetMailArchiver.Web")));
+
+builder.Services.AddQuartz();
+
+builder.Services.AddQuartzHostedService(q =>
+{
+    q.WaitForJobsToComplete = true;
+});
+
+builder.Services.AddHostedService<QuartzStartupService>();
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<ArchiveLockService>();
+builder.Services.AddTransient<ArchiveJob>();
+
 builder.Services.AddRazorPages().AddNToastNotifyToastr(new ToastrOptions
 {
     ProgressBar = true,

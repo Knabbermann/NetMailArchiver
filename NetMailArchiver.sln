@@ -3,13 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.12.35514.174
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetMailArchiver.Web", "NetMailArchiver.Web\NetMailArchiver.Web.csproj", "{A4304E8B-34A0-4988-8A11-31FA71B96B3B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetMailArchiver.Web", "NetMailArchiver.Web\NetMailArchiver.Web.csproj", "{A4304E8B-34A0-4988-8A11-31FA71B96B3B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetMailArchiver.Models", "NetMailArchiver.Models\NetMailArchiver.Models.csproj", "{E13A6277-0F88-4BB5-9771-00934C74DF07}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetMailArchiver.Models", "NetMailArchiver.Models\NetMailArchiver.Models.csproj", "{E13A6277-0F88-4BB5-9771-00934C74DF07}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetMailArchiver.Controllers", "NetMailArchiver.Controllers\NetMailArchiver.Controllers.csproj", "{53DC9324-38ED-45F5-BD80-85866E20BF2C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetMailArchiver.Services", "NetMailArchiver.Controllers\NetMailArchiver.Services.csproj", "{53DC9324-38ED-45F5-BD80-85866E20BF2C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetMailArchiver.DataAccess", "NetMailArchiver.DataAccess\NetMailArchiver.DataAccess.csproj", "{A3028C2A-3E3D-47AA-A8D6-A72C596A0771}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetMailArchiver.DataAccess", "NetMailArchiver.DataAccess\NetMailArchiver.DataAccess.csproj", "{A3028C2A-3E3D-47AA-A8D6-A72C596A0771}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NetMailArchiver.Web.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20241220140725_InitialCreate")]
+    [Migration("20250613184028_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -78,6 +78,13 @@ namespace NetMailArchiver.Web.Migrations
                     b.Property<string>("HtmlBody")
                         .HasColumnType("text");
 
+                    b.Property<Guid>("ImapInformationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MessageId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Subject")
                         .HasColumnType("text");
 
@@ -87,6 +94,8 @@ namespace NetMailArchiver.Web.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ImapInformationId");
+
                     b.ToTable("Emails");
                 });
 
@@ -95,6 +104,12 @@ namespace NetMailArchiver.Web.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<int>("ArchiveInterval")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("AutoArchive")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Host")
                         .IsRequired()
@@ -128,6 +143,17 @@ namespace NetMailArchiver.Web.Migrations
                         .IsRequired();
 
                     b.Navigation("Email");
+                });
+
+            modelBuilder.Entity("NetMailArchiver.Models.Email", b =>
+                {
+                    b.HasOne("NetMailArchiver.Models.ImapInformation", "ImapInformation")
+                        .WithMany()
+                        .HasForeignKey("ImapInformationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ImapInformation");
                 });
 
             modelBuilder.Entity("NetMailArchiver.Models.Email", b =>

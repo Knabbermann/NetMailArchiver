@@ -21,10 +21,11 @@
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.21.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.2" />
     <PackageReference Include="NToastNotify" Version="8.0.0" />
+    <PackageReference Include="Quartz.Extensions.DependencyInjection" Version="3.14.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\NetMailArchiver.Controllers\NetMailArchiver.Controllers.csproj" />
+    <ProjectReference Include="..\NetMailArchiver.Controllers\NetMailArchiver.Services.csproj" />
     <ProjectReference Include="..\NetMailArchiver.DataAccess\NetMailArchiver.DataAccess.csproj" />
   </ItemGroup>
 

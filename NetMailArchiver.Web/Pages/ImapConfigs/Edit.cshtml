@@ -31,6 +31,26 @@
                 <label asp-for="cImapInformation.UseSsl">Use Ssl</label>
                 <span asp-validation-for="cImapInformation.UseSsl" class="text-danger"></span>
             </div>
+            <div class="form-floating py-2 col-3">
+                <select asp-for="cImapInformation.AutoArchive" class="form-control">
+                    <option value="false" selected>No</option>
+                    <option value="true">Yes</option>
+                </select>
+                <label asp-for="cImapInformation.AutoArchive">Enable automatic archiving</label>
+                <span asp-validation-for="cImapInformation.AutoArchive" class="text-danger"></span>
+            </div>
+            <div class="form-floating py-2 col-3">
+                <select asp-for="cImapInformation.ArchiveInterval" class="form-control">
+                    <option value="0 */5 * ? * *" selected>Every 5 Minutes</option>
+                    <option value="0 */30 * ? * *">Every 30 Minutes</option>
+                    <option value="0 0 * ? * *">Every hour</option>
+                    <option value="0 0 */12 ? * *">Every 12 hours</option>
+                </select>
+                <label asp-for="cImapInformation.ArchiveInterval">Set interval for archiving</label>
+                <span asp-validation-for="cImapInformation.ArchiveInterval" class="text-danger"></span>
+            </div>
+            <div class="form-floating py-2 col-6">
+            </div>
             <div class="form-floating py-2 col-6">
                 <input asp-for="cImapInformation.Username" class="form-control" aria-required="true" />
                 <label asp-for="cImapInformation.Username"></label>

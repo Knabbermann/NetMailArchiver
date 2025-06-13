@@ -102,8 +102,9 @@ namespace NetMailArchiver.Web.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<int>("ArchiveInterval")
-                        .HasColumnType("integer");
+                    b.Property<string>("ArchiveInterval")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<bool>("AutoArchive")
                         .HasColumnType("boolean");

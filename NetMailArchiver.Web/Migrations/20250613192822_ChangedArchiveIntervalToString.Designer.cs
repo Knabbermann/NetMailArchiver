@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NetMailArchiver.Web.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250519094401_newColoumn")]
-    partial class newColoumn
+    [Migration("20250613192822_ChangedArchiveIntervalToString")]
+    partial class ChangedArchiveIntervalToString
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -105,8 +105,9 @@ namespace NetMailArchiver.Web.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<int>("ArchiveInterval")
-                        .HasColumnType("integer");
+                    b.Property<string>("ArchiveInterval")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<bool>("AutoArchive")
                         .HasColumnType("boolean");

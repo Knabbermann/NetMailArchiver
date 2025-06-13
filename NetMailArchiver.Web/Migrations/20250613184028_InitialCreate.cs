@@ -12,6 +12,24 @@ namespace NetMailArchiver.Web.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
+                name: "ImapInformations",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Host = table.Column<string>(type: "text", nullable: false),
+                    Port = table.Column<int>(type: "integer", nullable: false),
+                    UseSsl = table.Column<bool>(type: "boolean", nullable: false),
+                    Username = table.Column<string>(type: "text", nullable: false),
+                    Password = table.Column<string>(type: "text", nullable: false),
+                    AutoArchive = table.Column<bool>(type: "boolean", nullable: false),
+                    ArchiveInterval = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ImapInformations", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Emails",
                 columns: table => new
                 {
@@ -22,27 +40,19 @@ namespace NetMailArchiver.Web.Migrations
                     Cc = table.Column<string>(type: "text", nullable: true),
                     Bcc = table.Column<string>(type: "text", nullable: true),
                     HtmlBody = table.Column<string>(type: "text", nullable: true),
-                    Date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    Date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    MessageId = table.Column<string>(type: "text", nullable: false),
+                    ImapInformationId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Emails", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "ImapInformations",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Host = table.Column<string>(type: "text", nullable: false),
-                    Port = table.Column<int>(type: "integer", nullable: false),
-                    UseSsl = table.Column<bool>(type: "boolean", nullable: false),
-                    Username = table.Column<string>(type: "text", nullable: false),
-                    Password = table.Column<string>(type: "text", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ImapInformations", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Emails_ImapInformations_ImapInformationId",
+                        column: x => x.ImapInformationId,
+                        principalTable: "ImapInformations",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -71,6 +81,11 @@ namespace NetMailArchiver.Web.Migrations
                 name: "IX_Attachments_EmailId",
                 table: "Attachments",
                 column: "EmailId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Emails_ImapInformationId",
+                table: "Emails",
+                column: "ImapInformationId");
         }
 
         /// <inheritdoc />
@@ -80,10 +95,10 @@ namespace NetMailArchiver.Web.Migrations
                 name: "Attachments");
 
             migrationBuilder.DropTable(
-                name: "ImapInformations");
+                name: "Emails");
 
             migrationBuilder.DropTable(
-                name: "Emails");
+                name: "ImapInformations");
         }
     }
 }
