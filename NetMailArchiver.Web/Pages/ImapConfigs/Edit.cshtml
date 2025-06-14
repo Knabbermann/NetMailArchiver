@@ -7,19 +7,21 @@
     <input type="hidden" asp-for="cImapInformation.Id" />
     <input type="hidden" asp-for="Id" />
     <form method="post">
+        <input type="hidden" asp-for="cImapInformation.Id" />
+        <input type="hidden" asp-for="Id" />
         <div class="row pt-4 align-items-center">
             <div class="row pb-2">
                 <h2 class="text-info">Edit Mail Account</h2>
-                <hr />
+                <hr/>
             </div>
             <div asp-validation-summary="All" class="text-danger"></div>
             <div class="form-floating py-2 col-6">
-                <input asp-for="cImapInformation.Host" class="form-control" aria-required="true" />
+                <input asp-for="cImapInformation.Host" class="form-control" aria-required="true"/>
                 <label asp-for="cImapInformation.Host"></label>
                 <span asp-validation-for="cImapInformation.Host" class="text-danger"></span>
             </div>
             <div class="form-floating py-2 col-3">
-                <input asp-for="cImapInformation.Port" class="form-control" aria-required="true" />
+                <input asp-for="cImapInformation.Port" class="form-control" aria-required="true"/>
                 <label asp-for="cImapInformation.Port"></label>
                 <span asp-validation-for="cImapInformation.Port" class="text-danger"></span>
             </div>
@@ -52,12 +54,12 @@
             <div class="form-floating py-2 col-6">
             </div>
             <div class="form-floating py-2 col-6">
-                <input asp-for="cImapInformation.Username" class="form-control" aria-required="true" />
+                <input asp-for="cImapInformation.Username" class="form-control" aria-required="true"/>
                 <label asp-for="cImapInformation.Username"></label>
                 <span asp-validation-for="cImapInformation.Username" class="text-danger"></span>
             </div>
             <div class="form-floating py-2 col-6">
-                <input asp-for="cImapInformation.Password" value="@Model.cImapInformation.Password" class="form-control" autocomplete="password" aria-required="true" type="password" />
+                <input asp-for="cImapInformation.Password" value="@Model.cImapInformation.Password" class="form-control" autocomplete="password" aria-required="true" type="password"/>
                 <label asp-for="cImapInformation.Password"></label>
                 <span asp-validation-for="cImapInformation.Password" class="text-danger"></span>
             </div>

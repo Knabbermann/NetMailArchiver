@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
 using NetMailArchiver.DataAccess;
 using NetMailArchiver.Models;
 using NToastNotify;
@@ -48,18 +47,33 @@ namespace NetMailArchiver.Web.Pages.ImapConfigs
         {
             ModelState.Remove("cImapInformation.Id");
             ModelState.Remove("Id");
-            if (ModelState.IsValid)
+
+            if (!ModelState.IsValid)
             {
-                var oldImapInformation = _context.ImapInformations.Single(x => x.Id.Equals(new Guid(Id)));
-                _context.ImapInformations.Remove(oldImapInformation);
-                _context.SaveChanges();
-                _context.ImapInformations.Add(cImapInformation);
-                _context.SaveChanges();
-                _toastNotification.AddSuccessToastMessage("Successfully edited Mail Account.");
+                return Page();
+            }
+
+            var existing = _context.ImapInformations.SingleOrDefault(x => x.Id == cImapInformation.Id);
+
+            if (existing == null)
+            {
+                _toastNotification.AddErrorToastMessage("Mail Account not found.");
                 return RedirectToPage("/ImapConfigs/Index");
             }
 
-            return Page();
+            // Update properties
+            existing.Host = cImapInformation.Host;
+            existing.Port = cImapInformation.Port;
+            existing.Username = cImapInformation.Username;
+            existing.Password = cImapInformation.Password;
+            existing.UseSsl = cImapInformation.UseSsl;
+            existing.AutoArchive = cImapInformation.AutoArchive;
+            existing.ArchiveInterval = cImapInformation.ArchiveInterval;
+
+            _context.SaveChanges();
+
+            _toastNotification.AddSuccessToastMessage("Successfully edited Mail Account.");
+            return RedirectToPage("/ImapConfigs/Index");
         }
     }
 }
