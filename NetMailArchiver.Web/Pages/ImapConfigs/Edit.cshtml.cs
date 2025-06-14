@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using NetMailArchiver.DataAccess;
 using NetMailArchiver.Models;
+using NetMailArchiver.Services;
 using NToastNotify;
 
 namespace NetMailArchiver.Web.Pages.ImapConfigs
@@ -10,12 +11,15 @@ namespace NetMailArchiver.Web.Pages.ImapConfigs
     {
         private readonly ApplicationDbContext _context;
         private readonly IToastNotification _toastNotification;
+        private readonly QuartzJobSchedulerService _jobScheduler;
 
         public EditModel(ApplicationDbContext context,
-            IToastNotification toastNotification)
+            IToastNotification toastNotification,
+            QuartzJobSchedulerService jobScheduler)
         {
             _context = context;
             _toastNotification = toastNotification;
+            _jobScheduler = jobScheduler;
         }
 
         [BindProperty(SupportsGet = true)]
@@ -71,6 +75,7 @@ namespace NetMailArchiver.Web.Pages.ImapConfigs
             existing.ArchiveInterval = cImapInformation.ArchiveInterval;
 
             _context.SaveChanges();
+            _jobScheduler.ReloadScheduleAsync(CancellationToken.None);
 
             _toastNotification.AddSuccessToastMessage("Successfully edited Mail Account.");
             return RedirectToPage("/ImapConfigs/Index");

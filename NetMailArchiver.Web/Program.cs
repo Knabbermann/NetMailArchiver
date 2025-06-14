@@ -17,6 +17,7 @@ builder.Services.AddQuartzHostedService(q =>
     q.WaitForJobsToComplete = true;
 });
 
+builder.Services.AddSingleton<QuartzJobSchedulerService>();
 builder.Services.AddHostedService<QuartzStartupService>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<ArchiveLockService>();
