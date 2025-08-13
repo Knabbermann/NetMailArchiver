@@ -24,11 +24,11 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t $DOCKER_REGISTRY/$IMAGE_NAME:$IMAGE_TAG .
+          sudo docker build -t $DOCKER_REGISTRY/$IMAGE_NAME:$IMAGE_TAG .
 
       - name: Push Docker image to local registry
         run: |
-          docker push $DOCKER_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
+          sudo docker push $DOCKER_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
 
       - name: Apply Kubernetes manifests
         run: |
