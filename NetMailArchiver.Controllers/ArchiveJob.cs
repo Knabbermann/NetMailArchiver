@@ -6,7 +6,7 @@ using Quartz;
 namespace NetMailArchiver.Services
 {
     [DisallowConcurrentExecution]
-    public class ArchiveJob(ArchiveLockService archiveLockService, ILogger<ArchiveJob> logger, ApplicationDbContext context) : IJob
+    public class ArchiveJob(ArchiveLockService archiveLockService, ILogger<ArchiveJob> logger, ApplicationDbContext context, IArchiveProgressService progressService) : IJob
     {
         public async Task Execute(IJobExecutionContext context1)
         {
@@ -24,19 +24,37 @@ namespace NetMailArchiver.Services
                 return;
             }
 
+            var imapIdString = imapId.ToString();
+            progressService.SetJobRunning(imapIdString, true);
+            progressService.SetProgress(imapIdString, 0);
+
             logger.LogInformation($"Starte Archivierung für IMAP-ID {imapId}");
             try
             {
                 var imapController = new ImapService(archiveLockService, imapInfo, context);
                 imapController.ConnectAndAuthenticate();
-                await imapController.ArchiveNewMails(null,cancellationToken: CancellationToken.None);
+                
+                var progress = new Progress<int>(percent =>
+                {
+                    progressService.SetProgress(imapIdString, percent);
+                });
+                
+                await imapController.ArchiveNewMails(progress, cancellationToken: CancellationToken.None);
+                
+                progressService.SetProgress(imapIdString, 100);
                 logger.LogInformation("Archivierung abgeschlossen.");
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Fehler bei der Archivierung");
+                progressService.SetProgress(imapIdString, -1);
+            }
+            finally
+            {
+                // Remove progress after a short delay to allow frontend to see completion
+                await Task.Delay(5000);
+                progressService.RemoveProgress(imapIdString);
             }
         }
     }
-
 }

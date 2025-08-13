@@ -4,18 +4,16 @@ using NetMailArchiver.Services;
 using NetMailArchiver.DataAccess;
 using NetMailArchiver.Models;
 using NToastNotify;
-using System.Collections.Concurrent;
 
 namespace NetMailArchiver.Web.Pages
 {
     public class IndexModel(ArchiveLockService archiveLockService,
         ApplicationDbContext context,
         IServiceProvider serviceProvider,
-        IToastNotification toastNotification)
+        IToastNotification toastNotification,
+        IArchiveProgressService progressService)
         : PageModel
     {
-        private static ConcurrentDictionary<string, int> _progressDictionary = new ConcurrentDictionary<string, int>();
-
         public IEnumerable<ImapInformation> ImapInformations { get; set; }
 
         public void OnGet()
@@ -32,7 +30,8 @@ namespace NetMailArchiver.Web.Pages
         {
             var cImapInformation = context.ImapInformations.Single(x => x.Id.Equals(new Guid(id)));
 
-            _progressDictionary[id] = 0;
+            progressService.SetProgress(id, 0);
+            progressService.SetJobRunning(id, true);
             toastNotification.AddInfoToastMessage("Started archiving new mails.");
 
             Task.Run(async () =>
@@ -47,15 +46,21 @@ namespace NetMailArchiver.Web.Pages
                         cImapControllerInTask.ConnectAndAuthenticate();
                         await cImapControllerInTask.ArchiveNewMails(new Progress<int>(progress =>
                         {
-                            _progressDictionary[id] = progress;
+                            progressService.SetProgress(id, progress);
                         }), CancellationToken.None);
 
-                        _progressDictionary[id] = 100;
+                        progressService.SetProgress(id, 100);
                     }
                     catch (Exception ex)
                     {
                         toastNotification.AddErrorToastMessage(ex.Message);
-                        _progressDictionary[id] = -1;
+                        progressService.SetProgress(id, -1);
+                    }
+                    finally
+                    {
+                        // Remove progress after a short delay to allow frontend to see completion
+                        await Task.Delay(5000);
+                        progressService.RemoveProgress(id);
                     }
                     toastNotification.AddSuccessToastMessage("Finished archiving new mails.");
                 }
@@ -68,7 +73,8 @@ namespace NetMailArchiver.Web.Pages
         {
             var cImapInformation = context.ImapInformations.Single(x => x.Id.Equals(new Guid(id)));
 
-            _progressDictionary[id] = 0;
+            progressService.SetProgress(id, 0);
+            progressService.SetJobRunning(id, true);
             toastNotification.AddInfoToastMessage("Started archiving all mails.");
 
             Task.Run(async () =>
@@ -83,15 +89,21 @@ namespace NetMailArchiver.Web.Pages
                         cImapControllerInTask.ConnectAndAuthenticate();
                         await cImapControllerInTask.ArchiveAllMails(new Progress<int>(progress =>
                         {
-                            _progressDictionary[id] = progress;
+                            progressService.SetProgress(id, progress);
                         }), CancellationToken.None);
 
-                        _progressDictionary[id] = 100;
+                        progressService.SetProgress(id, 100);
                     }
                     catch (Exception ex)
                     {
                         toastNotification.AddErrorToastMessage(ex.Message);
-                        _progressDictionary[id] = -1; 
+                        progressService.SetProgress(id, -1); 
+                    }
+                    finally
+                    {
+                        // Remove progress after a short delay to allow frontend to see completion
+                        await Task.Delay(5000);
+                        progressService.RemoveProgress(id);
                     }
                     toastNotification.AddInfoToastMessage("Finished archiving all mails.");
                 }
@@ -100,10 +112,17 @@ namespace NetMailArchiver.Web.Pages
             return new JsonResult(new { status = "started" });
         }
 
-
         public IActionResult OnGetArchiveProgress(string id)
         {
-            return _progressDictionary.TryGetValue(id, out var progress) ? new JsonResult(progress) : new JsonResult(0);
+            var progress = progressService.GetProgress(id);
+            var isRunning = progressService.IsJobRunning(id);
+            return new JsonResult(new { progress = progress, isRunning = isRunning });
+        }
+
+        public IActionResult OnGetActiveJobs()
+        {
+            var activeJobs = progressService.GetActiveJobs();
+            return new JsonResult(activeJobs);
         }
     }
 }

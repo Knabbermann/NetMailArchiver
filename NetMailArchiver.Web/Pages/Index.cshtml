@@ -66,10 +66,23 @@
     <div class="progress mt-4" style="height: 20px; display: none;">
         <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;">0%</div>
     </div>
+    <div id="backgroundJobInfo" class="alert alert-info mt-2" style="display: none;">
+        <i class="bi bi-gear-fill"></i> Background archiving job is running...
+    </div>
 </div>
 
 <script>
+    let currentActiveJob = null;
+    let progressInterval = null;
+    let backgroundJobCheckInterval = null;
+
     $(document).ready(function() {
+        // Start checking for background jobs immediately
+        checkForBackgroundJobs();
+        
+        // Set up interval to continuously check for background jobs
+        backgroundJobCheckInterval = setInterval(checkForBackgroundJobs, 2000);
+
         $(".archive-all-btn").on("click", function() {
             const imapId = $(this).data("id");
             const $button = $(this);
@@ -78,9 +91,7 @@
             $("#progressBar").css("width", "0%").text("0%");
             archiveAllMails(imapId, $button);
         });
-    });
 
-    $(document).ready(function() {
         $(".archive-new-btn").on("click", function() {
             const imapId = $(this).data("id");
             const $button = $(this);
@@ -90,6 +101,85 @@
             archiveNewMails(imapId, $button);
         });
     });
+
+    function checkForBackgroundJobs() {
+        $.ajax({
+            url: '/Index?handler=ActiveJobs',
+            type: 'GET',
+            success: function(activeJobs) {
+                if (activeJobs && activeJobs.length > 0) {
+                    // There's at least one background job running
+                    const jobId = activeJobs[0];
+                    
+                    if (currentActiveJob !== jobId) {
+                        // New background job detected
+                        currentActiveJob = jobId;
+                        $("#backgroundJobInfo").show();
+                        $(".progress").show();
+                        $("#progressBar").css("width", "0%").text("0%");
+                        
+                        // Disable all buttons during background job
+                        $(".archive-all-btn, .archive-new-btn").prop("disabled", true);
+                        
+                        // Start monitoring this job's progress
+                        if (progressInterval) {
+                            clearInterval(progressInterval);
+                        }
+                        progressInterval = setInterval(() => getBackgroundJobProgress(jobId), 1000);
+                    }
+                } else {
+                    // No background jobs running
+                    if (currentActiveJob) {
+                        // Background job just finished
+                        currentActiveJob = null;
+                        $("#backgroundJobInfo").hide();
+                        $(".progress").hide();
+                        $(".archive-all-btn, .archive-new-btn").prop("disabled", false);
+                        
+                        if (progressInterval) {
+                            clearInterval(progressInterval);
+                            progressInterval = null;
+                        }
+                    }
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error("Failed to check for background jobs:", xhr.responseText);
+            }
+        });
+    }
+
+    function getBackgroundJobProgress(jobId) {
+        $.ajax({
+            url: '/Index?id=' + jobId + '&handler=ArchiveProgress',
+            type: 'GET',
+            success: function(response) {
+                const progress = response.progress || 0;
+                const isRunning = response.isRunning || false;
+                
+                const progressPercentage = progress + "%";
+                $("#progressBar").css("width", progressPercentage).text(progressPercentage);
+
+                if (!isRunning && progress >= 100) {
+                    // Job completed
+                    setTimeout(() => {
+                        $(".progress").hide();
+                        $("#backgroundJobInfo").hide();
+                        $(".archive-all-btn, .archive-new-btn").prop("disabled", false);
+                        currentActiveJob = null;
+                        
+                        if (progressInterval) {
+                            clearInterval(progressInterval);
+                            progressInterval = null;
+                        }
+                    }, 2000);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error("Failed to get background job progress:", xhr.responseText);
+            }
+        });
+    }
 
     function archiveAllMails(imapId, $button) {
         $.ajax({
@@ -125,17 +215,22 @@
         $.ajax({
             url: '/Index?id=' + imapId + '&handler=ArchiveProgress',
             type: 'GET',
-            success: function(progress) {
+            success: function(response) {
+                const progress = response.progress || 0;
+                const isRunning = response.isRunning || false;
+                
                 const progressPercentage = progress + "%";
                 $("#progressBar").css("width", progressPercentage).text(progressPercentage);
 
-                if (progress < 100) {
+                if (isRunning && progress < 100) {
                     setTimeout(function() {
                         getProgress(imapId, $button);
                     }, 1000);
                 } else {
-                    $(".progress").hide();
-                    $button.prop("disabled", false);
+                    setTimeout(() => {
+                        $(".progress").hide();
+                        $button.prop("disabled", false);
+                    }, 2000);
                 }
             },
             error: function(xhr, status, error) {
@@ -145,5 +240,15 @@
             }
         });
     }
+
+    // Clean up intervals when leaving the page
+    window.addEventListener('beforeunload', function() {
+        if (backgroundJobCheckInterval) {
+            clearInterval(backgroundJobCheckInterval);
+        }
+        if (progressInterval) {
+            clearInterval(progressInterval);
+        }
+    });
 </script>
 

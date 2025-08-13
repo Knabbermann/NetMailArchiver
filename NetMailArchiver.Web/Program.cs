@@ -21,6 +21,7 @@ builder.Services.AddSingleton<QuartzJobSchedulerService>();
 builder.Services.AddHostedService<QuartzStartupService>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<ArchiveLockService>();
+builder.Services.AddSingleton<IArchiveProgressService, ArchiveProgressService>();
 builder.Services.AddTransient<ArchiveJob>();
 
 builder.Services.AddRazorPages().AddNToastNotifyToastr(new ToastrOptions
