@@ -1,29 +1,38 @@
-# Unter https://aka.ms/customizecontainer erfahren Sie, wie Sie Ihren Debugcontainer anpassen und wie Visual Studio dieses Dockerfile verwendet, um Ihre Images für ein schnelleres Debuggen zu erstellen.
-
-# Diese Stufe wird verwendet, wenn sie von VS im Schnellmodus ausgeführt wird (Standardeinstellung für Debugkonfiguration).
+# ----------------------
+# Basis-Image für Laufzeit
+# ----------------------
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-USER $APP_UID
 WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
 
-
-# Diese Stufe wird zum Erstellen des Dienstprojekts verwendet.
+# ----------------------
+# Build-Stage
+# ----------------------
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["NetMailArchiver.Web/NetMailArchiver.Web.csproj", "NetMailArchiver.Web/"]
-RUN dotnet restore "./NetMailArchiver.Web/NetMailArchiver.Web.csproj"
-COPY . .
-WORKDIR "/src/NetMailArchiver.Web"
-RUN dotnet build "./NetMailArchiver.Web.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
-# Diese Stufe wird verwendet, um das Dienstprojekt zu veröffentlichen, das in die letzte Phase kopiert werden soll.
+# Nur Projektdatei kopieren und restore, damit Caches genutzt werden können
+COPY ["NetMailArchiver.Web.csproj", "./"]
+RUN dotnet restore "NetMailArchiver.Web.csproj"
+
+# Restliche Dateien kopieren
+COPY . .
+
+# Build
+RUN dotnet build "NetMailArchiver.Web.csproj" -c $BUILD_CONFIGURATION -o /app/build
+
+# ----------------------
+# Publish-Stage
+# ----------------------
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./NetMailArchiver.Web.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "NetMailArchiver.Web.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
-# Diese Stufe wird in der Produktion oder bei Ausführung von VS im regulären Modus verwendet (Standard, wenn die Debugkonfiguration nicht verwendet wird).
+# ----------------------
+# Final-Image
+# ----------------------
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
