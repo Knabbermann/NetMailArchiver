@@ -19,25 +19,33 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Buildx installieren (BuildKit aktivieren)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
           install: true
 
-      - name: Show current directory (Debug)
+      # Optional: Debug, Pfade prüfen
+      - name: Show current directory
         run: pwd
 
-      - name: List repository files (Debug)
+      - name: List repository files
         run: ls -R
 
+      # Docker Image bauen (Dockerfile liegt in NetMailArchiver.Web)
       - name: Build Docker image
         run: |
-          sudo docker build -t $DOCKER_REGISTRY/$IMAGE_NAME:$IMAGE_TAG -f ./NetMailArchiver/Dockerfile ./NetMailArchiver
+          sudo docker build \
+            -t $DOCKER_REGISTRY/$IMAGE_NAME:$IMAGE_TAG \
+            -f ./NetMailArchiver.Web/Dockerfile \
+            ./NetMailArchiver.Web
 
+      # Docker Image in lokale Registry pushen
       - name: Push Docker image to local registry
         run: |
           sudo docker push $DOCKER_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
 
+      # Kubernetes Deployment anwenden
       - name: Apply Kubernetes manifests
         run: |
           kubectl apply -f k8s/
