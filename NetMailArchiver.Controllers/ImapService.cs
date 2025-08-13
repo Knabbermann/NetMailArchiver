@@ -9,9 +9,10 @@ using NetMailArchiver.Models;
 
 namespace NetMailArchiver.Services
 {
-    public class ImapService(ArchiveLockService archiveLockService, ImapInformation imapInformation, ApplicationDbContext? context = null)
+    public class ImapService(ArchiveLockService archiveLockService, ImapInformation imapInformation, ApplicationDbContext? context = null) : IDisposable
     {
         private readonly ImapClient _client = new();
+        private bool _disposed = false;
 
         public void ConnectAndAuthenticate()
         {
@@ -49,10 +50,13 @@ namespace NetMailArchiver.Services
             if (context == null)
                 throw new Exception("NoContext");
 
-            var cMessageIds = await context.Emails
-                .Where(e => e.ImapInformationId == imapInformation.Id)
-                .Select(e => e.MessageId)
-                .ToListAsync(cancellationToken);
+            // Use HashSet for better performance on MessageId lookups
+            var existingMessageIds = new HashSet<string>(
+                await context.Emails
+                    .Where(e => e.ImapInformationId == imapInformation.Id)
+                    .Select(e => e.MessageId)
+                    .ToListAsync(cancellationToken)
+            );
 
             var lastArchivedMailDate = await context.Emails
                 .Where(e => e.ImapInformationId == imapInformation.Id)
@@ -65,64 +69,7 @@ namespace NetMailArchiver.Services
             
             var uids = await inbox.SearchAsync(lastArchivedMailDate.Equals(DateTime.MinValue) ? SearchQuery.All : SearchQuery.DeliveredAfter(lastArchivedMailDate), cancellationToken);
 
-            const int batchSize = 10;
-            var emailBatch = new List<Email>();
-            var totalProcessed = 0;
-
-            foreach (var uid in uids)
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    break;
-                }
-
-                var cMail = await inbox.GetMessageAsync(uid, cancellationToken);
-
-                var email = new Email
-                {
-                    Subject = cMail.Subject,
-                    From = string.Join(", ", cMail.From.Select(f => f.ToString())),
-                    To = string.Join(", ", cMail.To.Select(t => t.ToString())),
-                    Cc = cMail.Cc != null ? string.Join(", ", cMail.Cc.Select(c => c.ToString())) : null,
-                    Bcc = cMail.Bcc != null ? string.Join(", ", cMail.Bcc.Select(b => b.ToString())) : null,
-                    HtmlBody = cMail.HtmlBody,
-                    Date = cMail.Date.UtcDateTime,
-                    MessageId = cMail.MessageId,
-                    Attachments = cMail.Attachments.OfType<MimePart>().Select(a => new Attachment
-                    {
-                        FileName = a.FileName,
-                        ContentType = a.ContentType.MimeType,
-                        FileSize = a.ContentDisposition?.Size ?? 0,
-                        FileData = GetAttachmentData(a),
-                    }).ToList(),
-                    ImapInformationId = imapInformation.Id
-                };
-
-                totalProcessed++;
-
-                if (!cMessageIds.Contains(email.MessageId) && email.MessageId != null)
-                {
-                    emailBatch.Add(email);
-                }
-
-                if (emailBatch.Count >= batchSize)
-                {
-                    context.Emails.AddRange(emailBatch);
-                    await context.SaveChangesAsync(cancellationToken);
-                    emailBatch.Clear();
-                }
-
-                var totalProcessedPercent = (int)Math.Round((double)totalProcessed / uids.Count * 100);
-                progress?.Report(totalProcessedPercent);
-            }
-
-            if (emailBatch.Any())
-            {
-                context.Emails.AddRange(emailBatch);
-                await context.SaveChangesAsync(cancellationToken);
-            }
-
-            progress?.Report(100);
+            await ProcessEmailsInBatches(uids, existingMessageIds, progress, cancellationToken);
         }
 
         public async Task ArchiveAllMails(IProgress<int> progress, CancellationToken cancellationToken)
@@ -133,73 +80,188 @@ namespace NetMailArchiver.Services
             if (context == null)
                 throw new Exception("NoContext");
 
-            var cMessageIds = await context.Emails
-                .Where(e => e.ImapInformationId == imapInformation.Id)
-                .Select(e => e.MessageId)
-                .ToListAsync(cancellationToken);
+            // Use HashSet for better performance on MessageId lookups
+            var existingMessageIds = new HashSet<string>(
+                await context.Emails
+                    .Where(e => e.ImapInformationId == imapInformation.Id)
+                    .Select(e => e.MessageId)
+                    .ToListAsync(cancellationToken)
+            );
 
             var inbox = _client.Inbox;
             await inbox.OpenAsync(FolderAccess.ReadOnly, cancellationToken);
             var uids = await inbox.SearchAsync(SearchQuery.All, cancellationToken);
 
-            const int batchSize = 10;
+            await ProcessEmailsInBatches(uids, existingMessageIds, progress, cancellationToken);
+        }
+
+        private async Task ProcessEmailsInBatches(IList<UniqueId> uids, HashSet<string> existingMessageIds, IProgress<int> progress, CancellationToken cancellationToken)
+        {
+            const int batchSize = 5; // Reduced batch size for better memory management
+            const int gcCollectionInterval = 50; // Force GC every 50 processed emails
+            
             var emailBatch = new List<Email>();
             var totalProcessed = 0;
+            var totalCount = uids.Count;
 
-            foreach (var uid in uids)
+            for (int i = 0; i < totalCount; i++)
             {
                 if (cancellationToken.IsCancellationRequested)
-                {
                     break;
-                }
 
-                var cMail = await inbox.GetMessageAsync(uid, cancellationToken);
+                var uid = uids[i];
+                MimeMessage? cMail = null;
 
-                var email = new Email
+                try
                 {
-                    Subject = cMail.Subject,
-                    From = string.Join(", ", cMail.From.Select(f => f.ToString())),
-                    To = string.Join(", ", cMail.To.Select(t => t.ToString())),
-                    Cc = cMail.Cc != null ? string.Join(", ", cMail.Cc.Select(c => c.ToString())) : null,
-                    Bcc = cMail.Bcc != null ? string.Join(", ", cMail.Bcc.Select(b => b.ToString())) : null,
-                    HtmlBody = cMail.HtmlBody,
-                    Date = cMail.Date.UtcDateTime,
-                    MessageId = cMail.MessageId,
-                    Attachments = cMail.Attachments.OfType<MimePart>().Select(a => new Attachment
+                    // Get the message
+                    cMail = await _client.Inbox.GetMessageAsync(uid, cancellationToken);
+
+                    // Skip if we already have this message
+                    if (string.IsNullOrEmpty(cMail.MessageId) || existingMessageIds.Contains(cMail.MessageId))
                     {
-                        FileName = a.FileName,
-                        ContentType = a.ContentType.MimeType,
-                        FileSize = a.ContentDisposition?.Size ?? 0,
-                        FileData = GetAttachmentData(a),
-                    }).ToList(),
-                    ImapInformationId = imapInformation.Id
-                };
+                        continue;
+                    }
+
+                    var email = CreateEmailFromMimeMessage(cMail);
+                    emailBatch.Add(email);
+
+                    // Save batch when it reaches the batch size
+                    if (emailBatch.Count >= batchSize)
+                    {
+                        await SaveEmailBatch(emailBatch, cancellationToken);
+                        emailBatch.Clear();
+                    }
+                }
+                finally
+                {
+                    // Explicitly dispose the MimeMessage to free memory immediately
+                    cMail?.Dispose();
+                    cMail = null;
+                }
 
                 totalProcessed++;
 
-                if (!cMessageIds.Contains(email.MessageId) && email.MessageId != null)
+                // Force garbage collection periodically to free memory
+                if (totalProcessed % gcCollectionInterval == 0)
                 {
-                    emailBatch.Add(email);
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
                 }
 
-                if (emailBatch.Count >= batchSize)
-                {
-                    context.Emails.AddRange(emailBatch);
-                    await context.SaveChangesAsync(cancellationToken);
-                    emailBatch.Clear();
-                }
-
-                var totalProcessedPercent = (int)Math.Round((double)totalProcessed / uids.Count * 100);
-                progress?.Report(totalProcessedPercent);
+                // Report progress
+                var progressPercent = (int)Math.Round((double)totalProcessed / totalCount * 100);
+                progress?.Report(progressPercent);
             }
 
+            // Save any remaining emails in the batch
             if (emailBatch.Any())
+            {
+                await SaveEmailBatch(emailBatch, cancellationToken);
+                emailBatch.Clear();
+            }
+
+            // Final cleanup
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            progress?.Report(100);
+        }
+
+        private Email CreateEmailFromMimeMessage(MimeMessage cMail)
+        {
+            var email = new Email
+            {
+                Subject = cMail.Subject,
+                From = string.Join(", ", cMail.From.Select(f => f.ToString())),
+                To = string.Join(", ", cMail.To.Select(t => t.ToString())),
+                Cc = cMail.Cc?.Any() == true ? string.Join(", ", cMail.Cc.Select(c => c.ToString())) : null,
+                Bcc = cMail.Bcc?.Any() == true ? string.Join(", ", cMail.Bcc.Select(b => b.ToString())) : null,
+                HtmlBody = cMail.HtmlBody,
+                Date = cMail.Date.UtcDateTime,
+                MessageId = cMail.MessageId,
+                ImapInformationId = imapInformation.Id
+            };
+
+            // Process attachments separately to minimize memory footprint
+            var attachments = new List<Attachment>();
+            foreach (var attachment in cMail.Attachments.OfType<MimePart>())
+            {
+                try
+                {
+                    var attachmentData = GetAttachmentData(attachment);
+                    var attachmentModel = new Attachment
+                    {
+                        FileName = attachment.FileName ?? "unknown",
+                        ContentType = attachment.ContentType?.MimeType ?? "application/octet-stream",
+                        FileSize = attachment.ContentDisposition?.Size ?? attachmentData.Length,
+                        FileData = attachmentData,
+                        EmailId = email.Id
+                    };
+                    attachments.Add(attachmentModel);
+                }
+                catch (Exception)
+                {
+                    // Skip problematic attachments rather than failing the entire email
+                    continue;
+                }
+            }
+
+            email.Attachments = attachments;
+            return email;
+        }
+
+        private async Task SaveEmailBatch(List<Email> emailBatch, CancellationToken cancellationToken)
+        {
+            if (context == null || !emailBatch.Any()) 
+                return;
+
+            try
             {
                 context.Emails.AddRange(emailBatch);
                 await context.SaveChangesAsync(cancellationToken);
+                
+                // Detach entities from context to free memory
+                foreach (var email in emailBatch)
+                {
+                    context.Entry(email).State = EntityState.Detached;
+                    if (email.Attachments != null)
+                    {
+                        foreach (var attachment in email.Attachments)
+                        {
+                            context.Entry(attachment).State = EntityState.Detached;
+                        }
+                    }
+                }
             }
-
-            progress?.Report(100);
+            catch (Exception)
+            {
+                // If batch save fails, try to save individual emails
+                foreach (var email in emailBatch)
+                {
+                    try
+                    {
+                        context.Emails.Add(email);
+                        await context.SaveChangesAsync(cancellationToken);
+                        context.Entry(email).State = EntityState.Detached;
+                        if (email.Attachments != null)
+                        {
+                            foreach (var attachment in email.Attachments)
+                            {
+                                context.Entry(attachment).State = EntityState.Detached;
+                            }
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        // Skip problematic emails
+                        context.Entry(email).State = EntityState.Detached;
+                        continue;
+                    }
+                }
+            }
         }
 
         private static byte[] GetAttachmentData(MimePart attachment)
@@ -207,6 +269,21 @@ namespace NetMailArchiver.Services
             using var memoryStream = new MemoryStream();
             attachment.Content.DecodeTo(memoryStream);
             return memoryStream.ToArray();
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed && disposing)
+            {
+                _client?.Dispose();
+                _disposed = true;
+            }
         }
     }
 }

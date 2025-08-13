@@ -5,10 +5,21 @@ using NToastNotify;
 using Quartz;
 
 var builder = WebApplication.CreateBuilder(args);
+
 // Add services to the container.
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql("Host=localhost;Database=NetMailArchiver;Username=postgres;Password=postgres",
-        b => b.MigrationsAssembly("NetMailArchiver.Web")));
+    options.UseNpgsql("Host=192.168.178.28;Database=NetMailArchiver;Username=postgres;Password=postgres",
+        b => b.MigrationsAssembly("NetMailArchiver.Web"))
+    // Add memory optimization settings for Entity Framework
+    .EnableServiceProviderCaching(false) // Disable service provider caching to reduce memory usage
+    .EnableSensitiveDataLogging(false)); // Disable sensitive data logging in production
+
+// Configure garbage collection for better memory management
+if (!builder.Environment.IsDevelopment())
+{
+    // Use server GC mode for better memory handling in production
+    System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.Batch;
+}
 
 builder.Services.AddQuartz();
 
@@ -30,6 +41,7 @@ builder.Services.AddRazorPages().AddNToastNotifyToastr(new ToastrOptions
     TimeOut = 5000,
     PositionClass = "toast-bottom-right"
 });
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

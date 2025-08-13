@@ -1,0 +1,35 @@
+name: Build & Deploy Mail Archiver
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted
+
+    env:
+      DOCKER_REGISTRY: 192.168.178.56:5000
+      IMAGE_NAME: mailarchiver
+      IMAGE_TAG: latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          docker build -t $DOCKER_REGISTRY/$IMAGE_NAME:$IMAGE_TAG .
+
+      - name: Push Docker image to local registry
+        run: |
+          docker push $DOCKER_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f k8s/

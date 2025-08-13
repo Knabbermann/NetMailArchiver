@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NetMailArchiver.Web.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250613184028_InitialCreate")]
+    [Migration("20250813205906_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -105,8 +105,9 @@ namespace NetMailArchiver.Web.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<int>("ArchiveInterval")
-                        .HasColumnType("integer");
+                    b.Property<string>("ArchiveInterval")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<bool>("AutoArchive")
                         .HasColumnType("boolean");

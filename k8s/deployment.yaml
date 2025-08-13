@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mailarchiver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mailarchiver
+  template:
+    metadata:
+      labels:
+        app: mailarchiver
+    spec:
+      containers:
+      - name: mailarchiver
+        image: 192.168.178.56:5000/mailarchiver:latest
+        ports:
+        - containerPort: 8080
+        - containerPort: 8081

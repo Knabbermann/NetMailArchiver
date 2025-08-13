@@ -39,7 +39,9 @@ namespace NetMailArchiver.Web.Pages
                 using (var scope = serviceProvider.CreateScope())
                 {
                     var scopedContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                    var cImapControllerInTask = new ImapService(archiveLockService, cImapInformation, scopedContext);
+                    
+                    // Use using statement for proper disposal
+                    using var cImapControllerInTask = new ImapService(archiveLockService, cImapInformation, scopedContext);
 
                     try
                     {
@@ -50,6 +52,7 @@ namespace NetMailArchiver.Web.Pages
                         }), CancellationToken.None);
 
                         progressService.SetProgress(id, 100);
+                        toastNotification.AddSuccessToastMessage("Finished archiving new mails.");
                     }
                     catch (Exception ex)
                     {
@@ -58,11 +61,15 @@ namespace NetMailArchiver.Web.Pages
                     }
                     finally
                     {
+                        // Force garbage collection after manual archiving
+                        GC.Collect();
+                        GC.WaitForPendingFinalizers();
+                        GC.Collect();
+                        
                         // Remove progress after a short delay to allow frontend to see completion
                         await Task.Delay(5000);
                         progressService.RemoveProgress(id);
                     }
-                    toastNotification.AddSuccessToastMessage("Finished archiving new mails.");
                 }
             });
 
@@ -82,7 +89,9 @@ namespace NetMailArchiver.Web.Pages
                 using (var scope = serviceProvider.CreateScope())
                 {
                     var scopedContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                    var cImapControllerInTask = new ImapService(archiveLockService, cImapInformation, scopedContext);
+                    
+                    // Use using statement for proper disposal
+                    using var cImapControllerInTask = new ImapService(archiveLockService, cImapInformation, scopedContext);
 
                     try
                     {
@@ -93,6 +102,7 @@ namespace NetMailArchiver.Web.Pages
                         }), CancellationToken.None);
 
                         progressService.SetProgress(id, 100);
+                        toastNotification.AddInfoToastMessage("Finished archiving all mails.");
                     }
                     catch (Exception ex)
                     {
@@ -101,11 +111,15 @@ namespace NetMailArchiver.Web.Pages
                     }
                     finally
                     {
+                        // Force garbage collection after manual archiving
+                        GC.Collect();
+                        GC.WaitForPendingFinalizers();
+                        GC.Collect();
+                        
                         // Remove progress after a short delay to allow frontend to see completion
                         await Task.Delay(5000);
                         progressService.RemoveProgress(id);
                     }
-                    toastNotification.AddInfoToastMessage("Finished archiving all mails.");
                 }
             });
 

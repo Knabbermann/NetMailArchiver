@@ -29,9 +29,11 @@ namespace NetMailArchiver.Services
             progressService.SetProgress(imapIdString, 0);
 
             logger.LogInformation($"Starte Archivierung für IMAP-ID {imapId}");
+            
+            using var imapController = new ImapService(archiveLockService, imapInfo, context);
+            
             try
             {
-                var imapController = new ImapService(archiveLockService, imapInfo, context);
                 imapController.ConnectAndAuthenticate();
                 
                 var progress = new Progress<int>(percent =>
@@ -51,6 +53,11 @@ namespace NetMailArchiver.Services
             }
             finally
             {
+                // Force garbage collection after job completion
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+                
                 // Remove progress after a short delay to allow frontend to see completion
                 await Task.Delay(5000);
                 progressService.RemoveProgress(imapIdString);

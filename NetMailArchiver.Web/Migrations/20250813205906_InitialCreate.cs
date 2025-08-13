@@ -22,7 +22,7 @@ namespace NetMailArchiver.Web.Migrations
                     Username = table.Column<string>(type: "text", nullable: false),
                     Password = table.Column<string>(type: "text", nullable: false),
                     AutoArchive = table.Column<bool>(type: "boolean", nullable: false),
-                    ArchiveInterval = table.Column<int>(type: "integer", nullable: false)
+                    ArchiveInterval = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
