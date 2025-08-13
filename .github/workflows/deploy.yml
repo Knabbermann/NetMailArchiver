@@ -21,10 +21,18 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+
+      - name: Show current directory (Debug)
+        run: pwd
+
+      - name: List repository files (Debug)
+        run: ls -R
 
       - name: Build Docker image
         run: |
-          sudo docker build -t $DOCKER_REGISTRY/$IMAGE_NAME:$IMAGE_TAG .
+          sudo docker build -t $DOCKER_REGISTRY/$IMAGE_NAME:$IMAGE_TAG -f ./NetMailArchiver/Dockerfile ./NetMailArchiver
 
       - name: Push Docker image to local registry
         run: |
