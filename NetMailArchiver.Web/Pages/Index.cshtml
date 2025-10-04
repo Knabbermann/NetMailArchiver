@@ -2,253 +2,485 @@
 @using Microsoft.AspNetCore.Mvc.TagHelpers
 @model NetMailArchiver.Web.Pages.IndexModel
 @{
+    ViewData["Title"] = "Dashboard";
 }
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-<div class="container p-3">
-    <div class="row pt-4 align-items-center">
-        <div class="col-6">
-            <h2 class="text-info">Overview</h2>
+<!-- Page Header -->
+<div class="page-header">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h1 class="display-5 fw-bold mb-2">
+                    <i class="fas fa-chart-line me-3"></i>Dashboard
+                </h1>
+                <p class="lead mb-0 opacity-90">
+                    Monitor and manage your email archiving operations
+                </p>
+            </div>
+            <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+                <div class="d-flex justify-content-lg-end gap-2">
+                    <button class="btn btn-light" onclick="refreshData()" 
+                            data-bs-toggle="tooltip" title="Refresh Data">
+                        <i class="fas fa-sync-alt me-2"></i>Refresh
+                    </button>
+                </div>
+            </div>
         </div>
-    </div>
-    <br />
-    <table class="table table-bordered table-striped" style="width: 100%">
-        <thead>
-            <tr class="table-info">
-                <th>
-                    Host
-                </th>
-                <th>
-                    Username
-                </th>
-                <th>
-                    Archived Mails
-                </th>
-                <th>
-                    Archived Attachments
-                </th>
-                <th class="fst-italic">
-                    Action
-                </th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var (obj, index) in Model.ImapInformations.Select((obj, index) => (obj, index)))
-            {
-                <tr>
-                    <td width="20%">
-                        @obj.Host
-                    </td>
-                    <td width="30%">
-                        @obj.Username
-                    </td>
-                    <td width="15%">
-                        @obj.EmailCount
-                    </td>
-                    <td width="15%">
-                        @obj.AttachmentCount
-                    </td>
-                    <td width="30%">
-                        <div class="d-flex justify-content-evenly">
-                            <button class="btn btn-outline-info archive-all-btn" data-id="@obj.Id">
-                                <i class="bi bi-info-square"></i>&nbsp;Archive all Mails
-                            </button>
-                            <button class="btn btn-outline-info archive-new-btn" data-id="@obj.Id">
-                                <i class="bi bi-info-square"></i>&nbsp;Archive new Mails
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-    <div class="progress mt-4" style="height: 20px; display: none;">
-        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;">0%</div>
-    </div>
-    <div id="backgroundJobInfo" class="alert alert-info mt-2" style="display: none;">
-        <i class="bi bi-gear-fill"></i> Background archiving job is running...
     </div>
 </div>
 
-<script>
-    let currentActiveJob = null;
-    let progressInterval = null;
-    let backgroundJobCheckInterval = null;
+<div class="container py-4">
+    <!-- Statistics Overview -->
+    <div class="row g-4 mb-5">
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card fade-in-up">
+                <div class="stat-icon mb-3">
+                    <i class="fas fa-server"></i>
+                </div>
+                <div class="stat-number">@Model.ImapInformations.Count()</div>
+                <div class="stat-label">Mail Accounts</div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card fade-in-up" style="animation-delay: 0.1s;">
+                <div class="stat-icon mb-3">
+                    <i class="fas fa-envelope"></i>
+                </div>
+                <div class="stat-number">@Model.ImapInformations.Sum(x => x.EmailCount)</div>
+                <div class="stat-label">Total Emails</div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card fade-in-up" style="animation-delay: 0.2s;">
+                <div class="stat-icon mb-3">
+                    <i class="fas fa-paperclip"></i>
+                </div>
+                <div class="stat-number">@Model.ImapInformations.Sum(x => x.AttachmentCount)</div>
+                <div class="stat-label">Attachments</div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card fade-in-up" style="animation-delay: 0.3s;">
+                <div class="stat-icon mb-3">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-number" id="activeTasks">0</div>
+                <div class="stat-label">Active Tasks</div>
+            </div>
+        </div>
+    </div>
 
-    $(document).ready(function() {
-        // Start checking for background jobs immediately
-        checkForBackgroundJobs();
-        
-        // Set up interval to continuously check for background jobs
-        backgroundJobCheckInterval = setInterval(checkForBackgroundJobs, 2000);
+    <!-- Main Content Card -->
+    <div class="card fade-in-up" style="animation-delay: 0.4s;">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">
+                <i class="fas fa-server me-2"></i>Mail Account Overview
+            </h4>
+            <div class="d-flex gap-2">
+                <a href="/ImapConfigs/Add" class="btn btn-light btn-sm">
+                    <i class="fas fa-plus me-2"></i>Add Account
+                </a>
+                <button class="btn btn-light btn-sm" onclick="toggleView()" id="viewToggle">
+                    <i class="fas fa-th-large me-2"></i>Grid View
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            @if (Model.ImapInformations.Any())
+            {
+                <!-- Table View -->
+                <div id="tableView" class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th width="20%">
+                                    <i class="fas fa-server me-2 text-primary"></i>Host
+                                </th>
+                                <th width="25%">
+                                    <i class="fas fa-user me-2 text-primary"></i>Username
+                                </th>
+                                <th width="15%" class="text-center">
+                                    <i class="fas fa-envelope me-2 text-primary"></i>Emails
+                                </th>
+                                <th width="15%" class="text-center">
+                                    <i class="fas fa-paperclip me-2 text-primary"></i>Attachments
+                                </th>
+                                <th width="25%" class="text-center">
+                                    <i class="fas fa-cogs me-2 text-primary"></i>Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var (obj, index) in Model.ImapInformations.Select((obj, index) => (obj, index)))
+                            {
+                                <tr class="account-row" data-account-id="@obj.Id">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="status-indicator online me-3"></div>
+                                            <div>
+                                                <div class="fw-semibold">@obj.Host</div>
+                                                <small class="text-muted">Port: @obj.Port</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium">@obj.Username</div>
+                                        <small class="text-muted">
+                                            <i class="fas fa-shield-alt me-1"></i>
+                                            @(obj.UseSsl ? "SSL Enabled" : "SSL Disabled")
+                                        </small>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary fs-6 px-3 py-2">
+                                            @obj.EmailCount.ToString("N0")
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-secondary fs-6 px-3 py-2">
+                                            @obj.AttachmentCount.ToString("N0")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons justify-content-center">
+                                            <button class="btn btn-primary archive-all-btn" data-id="@obj.Id"
+                                                    data-bs-toggle="tooltip" title="Archive all emails from this account">
+                                                <i class="fas fa-download me-2"></i>Archive All
+                                            </button>
+                                            <button class="btn btn-outline-primary archive-new-btn" data-id="@obj.Id"
+                                                    data-bs-toggle="tooltip" title="Archive only new emails">
+                                                <i class="fas fa-plus me-2"></i>Archive New
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
 
-        $(".archive-all-btn").on("click", function() {
-            const imapId = $(this).data("id");
-            const $button = $(this);
-            $button.prop("disabled", true); 
-            $(".progress").show();
-            $("#progressBar").css("width", "0%").text("0%");
-            archiveAllMails(imapId, $button);
+                <!-- Grid View (Hidden by default) -->
+                <div id="gridView" class="d-none">
+                    <div class="row g-4">
+                        @foreach (var obj in Model.ImapInformations)
+                        {
+                            <div class="col-lg-6 col-xl-4">
+                                <div class="card h-100 account-card" data-account-id="@obj.Id">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-start justify-content-between mb-3">
+                                            <div class="status-indicator online"></div>
+                                            <div class="dropdown">
+                                                <button class="btn btn-sm btn-outline-secondary" type="button" 
+                                                        data-bs-toggle="dropdown" aria-expanded="false">
+                                                    <i class="fas fa-ellipsis-v"></i>
+                                                </button>
+                                                <ul class="dropdown-menu">
+                                                    <li><a class="dropdown-item" href="/ImapConfigs/Edit/@obj.Id">
+                                                        <i class="fas fa-edit me-2"></i>Edit Account
+                                                    </a></li>
+                                                    <li><a class="dropdown-item text-danger" href="/ImapConfigs/Delete/@obj.Id">
+                                                        <i class="fas fa-trash me-2"></i>Delete Account
+                                                    </a></li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        
+                                        <h5 class="card-title fw-bold text-primary">@obj.Host</h5>
+                                        <p class="card-text text-muted mb-3">@obj.Username</p>
+                                        
+                                        <div class="row g-3 mb-4">
+                                            <div class="col-6">
+                                                <div class="text-center">
+                                                    <div class="h4 text-primary mb-1">@obj.EmailCount.ToString("N0")</div>
+                                                    <small class="text-muted">Emails</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="text-center">
+                                                    <div class="h4 text-secondary mb-1">@obj.AttachmentCount.ToString("N0")</div>
+                                                    <small class="text-muted">Attachments</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="d-grid gap-2">
+                                            <button class="btn btn-primary archive-all-btn" data-id="@obj.Id">
+                                                <i class="fas fa-download me-2"></i>Archive All
+                                            </button>
+                                            <button class="btn btn-outline-primary archive-new-btn" data-id="@obj.Id">
+                                                <i class="fas fa-plus me-2"></i>Archive New
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- Empty State -->
+                <div class="text-center py-5">
+                    <div class="empty-state">
+                        <i class="fas fa-inbox fa-4x text-muted mb-4"></i>
+                        <h4 class="text-muted mb-3">No Mail Accounts Configured</h4>
+                        <p class="text-muted mb-4">Get started by adding your first email account to begin archiving.</p>
+                        <a href="/ImapConfigs/Add" class="btn btn-primary btn-lg">
+                            <i class="fas fa-plus me-2"></i>Add Your First Account
+                        </a>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Progress Section -->
+    <div class="card mt-4 fade-in-up" id="progressSection" style="display: none; animation-delay: 0.5s;">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-tasks me-2"></i>Archive Progress
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="progress mb-3" style="height: 25px;">
+                <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                     role="progressbar" style="width: 0%;">
+                    <span class="fw-semibold">0%</span>
+                </div>
+            </div>
+            <div id="progressInfo" class="d-flex justify-content-between align-items-center">
+                <span id="progressText" class="text-muted">Ready to start...</span>
+                <button class="btn btn-outline-danger btn-sm" onclick="cancelOperation()" id="cancelBtn" style="display: none;">
+                    <i class="fas fa-times me-2"></i>Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Background Job Alert -->
+    <div id="backgroundJobInfo" class="alert alert-info mt-4 fade-in-up" style="display: none; animation-delay: 0.6s;">
+        <div class="d-flex align-items-center">
+            <div class="spinner-border-custom me-3"></div>
+            <div>
+                <h6 class="alert-heading mb-1">Background Job Running</h6>
+                <p class="mb-0">An email archiving job is currently running in the background. Progress will be updated automatically.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let currentActiveJob = null;
+        let progressInterval = null;
+        let backgroundJobCheckInterval = null;
+        let isGridView = false;
+
+        $(document).ready(function() {
+            // Initialize tooltips
+            $('[data-bs-toggle="tooltip"]').tooltip();
+            
+            // Start checking for background jobs
+            checkForBackgroundJobs();
+            backgroundJobCheckInterval = setInterval(checkForBackgroundJobs, 2000);
+
+            // Archive button handlers
+            $(".archive-all-btn").on("click", function() {
+                const imapId = $(this).data("id");
+                const $button = $(this);
+                startArchiveOperation(imapId, $button, 'all');
+            });
+
+            $(".archive-new-btn").on("click", function() {
+                const imapId = $(this).data("id");
+                const $button = $(this);
+                startArchiveOperation(imapId, $button, 'new');
+            });
         });
 
-        $(".archive-new-btn").on("click", function() {
-            const imapId = $(this).data("id");
-            const $button = $(this);
-            $button.prop("disabled", true);
-            $(".progress").show();
-            $("#progressBar").css("width", "0%").text("0%");
-            archiveNewMails(imapId, $button);
-        });
-    });
+        function startArchiveOperation(imapId, $button, type) {
+            // Disable all archive buttons
+            $(".archive-all-btn, .archive-new-btn").prop("disabled", true);
+            
+            // Show progress section
+            $("#progressSection").slideDown();
+            $("#progressBar").css("width", "0%").find("span").text("0%");
+            $("#progressText").text(`Starting ${type} email archive...`);
+            $("#cancelBtn").show();
+            
+            // Add visual feedback to the clicked button
+            $button.addClass('pulse');
+            
+            const url = type === 'all' ? 
+                `/Index?id=${imapId}&handler=ArchiveAllMails` : 
+                `/Index?id=${imapId}&handler=ArchiveNewMails`;
+            
+            $.ajax({
+                url: url,
+                type: 'GET',
+                success: function(response) {
+                    getProgress(imapId, $button);
+                },
+                error: function(xhr, status, error) {
+                    handleError("Failed to start archive process", xhr.responseText);
+                    resetUI($button);
+                }
+            });
+        }
 
-    function checkForBackgroundJobs() {
-        $.ajax({
-            url: '/Index?handler=ActiveJobs',
-            type: 'GET',
-            success: function(activeJobs) {
-                if (activeJobs && activeJobs.length > 0) {
-                    // There's at least one background job running
-                    const jobId = activeJobs[0];
+        function checkForBackgroundJobs() {
+            $.ajax({
+                url: '/Index?handler=ActiveJobs',
+                type: 'GET',
+                success: function(activeJobs) {
+                    const hasActiveJobs = activeJobs && activeJobs.length > 0;
+                    $("#activeTasks").text(activeJobs ? activeJobs.length : 0);
                     
-                    if (currentActiveJob !== jobId) {
-                        // New background job detected
-                        currentActiveJob = jobId;
-                        $("#backgroundJobInfo").show();
-                        $(".progress").show();
-                        $("#progressBar").css("width", "0%").text("0%");
+                    if (hasActiveJobs) {
+                        const jobId = activeJobs[0];
                         
-                        // Disable all buttons during background job
-                        $(".archive-all-btn, .archive-new-btn").prop("disabled", true);
-                        
-                        // Start monitoring this job's progress
-                        if (progressInterval) {
-                            clearInterval(progressInterval);
+                        if (currentActiveJob !== jobId) {
+                            currentActiveJob = jobId;
+                            $("#backgroundJobInfo").slideDown();
+                            $("#progressSection").slideDown();
+                            $(".archive-all-btn, .archive-new-btn").prop("disabled", true);
+                            
+                            if (progressInterval) clearInterval(progressInterval);
+                            progressInterval = setInterval(() => getBackgroundJobProgress(jobId), 1000);
                         }
-                        progressInterval = setInterval(() => getBackgroundJobProgress(jobId), 1000);
-                    }
-                } else {
-                    // No background jobs running
-                    if (currentActiveJob) {
-                        // Background job just finished
-                        currentActiveJob = null;
-                        $("#backgroundJobInfo").hide();
-                        $(".progress").hide();
-                        $(".archive-all-btn, .archive-new-btn").prop("disabled", false);
-                        
-                        if (progressInterval) {
-                            clearInterval(progressInterval);
-                            progressInterval = null;
+                    } else {
+                        if (currentActiveJob) {
+                            currentActiveJob = null;
+                            $("#backgroundJobInfo").slideUp();
+                            setTimeout(() => $("#progressSection").slideUp(), 2000);
+                            $(".archive-all-btn, .archive-new-btn").prop("disabled", false);
+                            
+                            if (progressInterval) {
+                                clearInterval(progressInterval);
+                                progressInterval = null;
+                            }
                         }
                     }
+                },
+                error: function(xhr, status, error) {
+                    console.error("Failed to check for background jobs:", error);
                 }
-            },
-            error: function(xhr, status, error) {
-                console.error("Failed to check for background jobs:", xhr.responseText);
-            }
-        });
-    }
-
-    function getBackgroundJobProgress(jobId) {
-        $.ajax({
-            url: '/Index?id=' + jobId + '&handler=ArchiveProgress',
-            type: 'GET',
-            success: function(response) {
-                const progress = response.progress || 0;
-                const isRunning = response.isRunning || false;
-                
-                const progressPercentage = progress + "%";
-                $("#progressBar").css("width", progressPercentage).text(progressPercentage);
-
-                if (!isRunning && progress >= 100) {
-                    // Job completed
-                    setTimeout(() => {
-                        $(".progress").hide();
-                        $("#backgroundJobInfo").hide();
-                        $(".archive-all-btn, .archive-new-btn").prop("disabled", false);
-                        currentActiveJob = null;
-                        
-                        if (progressInterval) {
-                            clearInterval(progressInterval);
-                            progressInterval = null;
-                        }
-                    }, 2000);
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error("Failed to get background job progress:", xhr.responseText);
-            }
-        });
-    }
-
-    function archiveAllMails(imapId, $button) {
-        $.ajax({
-            url: '/Index?id=' + imapId + '&handler=ArchiveAllMails',
-            type: 'GET',
-            success: function(response) {
-                getProgress(imapId, $button);
-            },
-            error: function(xhr, status, error) {
-                $(".progress").hide();
-                console.error("Failed to start archive process:", xhr.responseText);
-                $button.prop("disabled", false); 
-            }
-        });
-    }
-
-    function archiveNewMails(imapId, $button) {
-        $.ajax({
-            url: '/Index?id=' + imapId + '&handler=ArchiveNewMails',
-            type: 'GET',
-            success: function(response) {
-                getProgress(imapId, $button);
-            },
-            error: function(xhr, status, error) {
-                $(".progress").hide();
-                console.error("Failed to start archive process:", xhr.responseText);
-                $button.prop("disabled", false);
-            }
-        });
-    }
-
-    function getProgress(imapId, $button) {
-        $.ajax({
-            url: '/Index?id=' + imapId + '&handler=ArchiveProgress',
-            type: 'GET',
-            success: function(response) {
-                const progress = response.progress || 0;
-                const isRunning = response.isRunning || false;
-                
-                const progressPercentage = progress + "%";
-                $("#progressBar").css("width", progressPercentage).text(progressPercentage);
-
-                if (isRunning && progress < 100) {
-                    setTimeout(function() {
-                        getProgress(imapId, $button);
-                    }, 1000);
-                } else {
-                    setTimeout(() => {
-                        $(".progress").hide();
-                        $button.prop("disabled", false);
-                    }, 2000);
-                }
-            },
-            error: function(xhr, status, error) {
-                $(".progress").hide();
-                console.error("Failed to get progress:", xhr.responseText);
-                $button.prop("disabled", false);
-            }
-        });
-    }
-
-    // Clean up intervals when leaving the page
-    window.addEventListener('beforeunload', function() {
-        if (backgroundJobCheckInterval) {
-            clearInterval(backgroundJobCheckInterval);
+            });
         }
-        if (progressInterval) {
-            clearInterval(progressInterval);
+
+        function getProgress(imapId, $button) {
+            $.ajax({
+                url: `/Index?id=${imapId}&handler=ArchiveProgress`,
+                type: 'GET',
+                success: function(response) {
+                    const progress = response.progress || 0;
+                    const isRunning = response.isRunning || false;
+                    
+                    updateProgressBar(progress);
+                    
+                    if (isRunning && progress < 100) {
+                        setTimeout(() => getProgress(imapId, $button), 1000);
+                    } else {
+                        completeOperation($button);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    handleError("Failed to get progress", xhr.responseText);
+                    resetUI($button);
+                }
+            });
         }
-    });
-</script>
+
+        function getBackgroundJobProgress(jobId) {
+            $.ajax({
+                url: `/Index?id=${jobId}&handler=ArchiveProgress`,
+                type: 'GET',
+                success: function(response) {
+                    const progress = response.progress || 0;
+                    const isRunning = response.isRunning || false;
+                    
+                    updateProgressBar(progress);
+                    
+                    if (!isRunning && progress >= 100) {
+                        setTimeout(() => {
+                            $("#progressSection").slideUp();
+                            $("#backgroundJobInfo").slideUp();
+                            $(".archive-all-btn, .archive-new-btn").prop("disabled", false);
+                            currentActiveJob = null;
+                            
+                            if (progressInterval) {
+                                clearInterval(progressInterval);
+                                progressInterval = null;
+                            }
+                        }, 2000);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error("Failed to get background job progress:", error);
+                }
+            });
+        }
+
+        function updateProgressBar(progress) {
+            const progressPercentage = `${progress}%`;
+            $("#progressBar").css("width", progressPercentage).find("span").text(progressPercentage);
+            $("#progressText").text(`Archiving emails... ${progressPercentage} complete`);
+        }
+
+        function completeOperation($button) {
+            $("#progressText").text("Archive operation completed successfully!");
+            $("#cancelBtn").hide();
+            
+            setTimeout(() => {
+                $("#progressSection").slideUp();
+                resetUI($button);
+                refreshData();
+            }, 2000);
+        }
+
+        function resetUI($button) {
+            $(".archive-all-btn, .archive-new-btn").prop("disabled", false);
+            if ($button) $button.removeClass('pulse');
+            $("#cancelBtn").hide();
+        }
+
+        function handleError(message, details) {
+            toastr.error(`${message}: ${details}`);
+            console.error(message, details);
+        }
+
+        function refreshData() {
+            location.reload();
+        }
+
+        function toggleView() {
+            isGridView = !isGridView;
+            const $tableView = $("#tableView");
+            const $gridView = $("#gridView");
+            const $toggleBtn = $("#viewToggle");
+            
+            if (isGridView) {
+                $tableView.addClass('d-none');
+                $gridView.removeClass('d-none');
+                $toggleBtn.html('<i class="fas fa-table me-2"></i>Table View');
+            } else {
+                $gridView.addClass('d-none');
+                $tableView.removeClass('d-none');
+                $toggleBtn.html('<i class="fas fa-th-large me-2"></i>Grid View');
+            }
+        }
+
+        function cancelOperation() {
+            // Implementation for canceling operations
+            $("#cancelBtn").prop("disabled", true).html('<i class="fas fa-spinner fa-spin me-2"></i>Canceling...');
+            // Add actual cancellation logic here
+        }
+
+        // Cleanup on page unload
+        $(window).on('beforeunload', function() {
+            if (backgroundJobCheckInterval) clearInterval(backgroundJobCheckInterval);
+            if (progressInterval) clearInterval(progressInterval);
+        });
+    </script>
+}
 

@@ -1,20 +1,132 @@
-﻿<ul class="navbar-nav">
-    <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="theme-menu" aria-expanded="false" data-bs-toggle="dropdown" data-bs-display="static" aria-label="Toggle theme">
-            <i class="bi bi-circle-half"></i>
-            <span class="d-lg-none ms-2">Toggle theme</span>
-        </a>
-        <ul class="dropdown-menu dropdown-menu-end">
-            <li>
-                <button type="button" class="dropdown-item d-flex align-items-center" data-theme-value="light" aria-pressed="false">
-                    <i class="bi bi-sun-fill"></i><span class="ms-2">Light</span>
-                </button>
-            </li>
-            <li>
-                <button type="button" class="dropdown-item d-flex align-items-center" data-theme-value="dark" aria-pressed="true">
-                    <i class="bi bi-moon-stars-fill"></i><span class="ms-2">Dark</span>
-                </button>
-            </li>
-        </ul>
-    </li>
-</ul>
+﻿<div class="nav-item dropdown">
+    <button class="btn btn-outline-light btn-sm dropdown-toggle d-flex align-items-center" 
+            type="button" id="themeDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+            data-bs-toggle="tooltip" title="Change Theme">
+        <i class="fas fa-palette me-2" id="themeIcon"></i>
+        <span class="theme-text d-none d-lg-inline">Theme</span>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end shadow-lg" aria-labelledby="themeDropdown" style="min-width: 180px;">
+        <li class="dropdown-header">
+            <i class="fas fa-brush me-2"></i>Choose Theme
+        </li>
+        <li><hr class="dropdown-divider"></li>
+        <li>
+            <button type="button" class="dropdown-item d-flex align-items-center py-2" 
+                    data-theme-value="light" id="lightTheme">
+                <div class="theme-icon me-3">
+                    <i class="fas fa-sun text-warning"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="fw-medium">Light Theme</div>
+                    <small class="text-muted">Default bright theme</small>
+                </div>
+                <div class="theme-check">
+                    <i class="fas fa-check text-success d-none"></i>
+                </div>
+            </button>
+        </li>
+        <li>
+            <button type="button" class="dropdown-item d-flex align-items-center py-2" 
+                    data-theme-value="dark" id="darkTheme">
+                <div class="theme-icon me-3">
+                    <i class="fas fa-moon text-info"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="fw-medium">Dark Theme</div>
+                    <small class="text-muted">Easy on the eyes</small>
+                </div>
+                <div class="theme-check">
+                    <i class="fas fa-check text-success d-none"></i>
+                </div>
+            </button>
+        </li>
+    </ul>
+</div>
+
+<style>
+.dropdown-item:hover .theme-icon i {
+    transform: scale(1.2);
+    transition: transform 0.2s ease;
+}
+
+.dropdown-item.active {
+    background-color: rgba(27, 110, 194, 0.1);
+    color: #1b6ec2;
+}
+
+.dropdown-item.active .theme-check i {
+    display: inline-block !important;
+}
+
+.theme-icon {
+    width: 24px;
+    text-align: center;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const themeDropdown = document.getElementById('themeDropdown');
+    const themeIcon = document.getElementById('themeIcon');
+    const themeButtons = document.querySelectorAll('[data-theme-value]');
+    const htmlTag = document.querySelector('html');
+    
+    // Theme configuration (removed auto theme)
+    const themes = {
+        light: { icon: 'fas fa-sun', color: 'text-warning' },
+        dark: { icon: 'fas fa-moon', color: 'text-info' }
+    };
+    
+    function updateThemeIcon(theme) {
+        const config = themes[theme] || themes.light;
+        themeIcon.className = `${config.icon} me-2`;
+    }
+    
+    function updateActiveTheme(activeTheme) {
+        // Remove active state from all items
+        document.querySelectorAll('.dropdown-item[data-theme-value]').forEach(item => {
+            item.classList.remove('active');
+            item.querySelector('.theme-check i').classList.add('d-none');
+        });
+        
+        // Add active state to current theme
+        const activeItem = document.querySelector(`[data-theme-value="${activeTheme}"]`);
+        if (activeItem) {
+            activeItem.classList.add('active');
+            activeItem.querySelector('.theme-check i').classList.remove('d-none');
+        }
+        
+        updateThemeIcon(activeTheme);
+    }
+    
+    function setTheme(theme) {
+        htmlTag.setAttribute('data-bs-theme', theme);
+        localStorage.setItem('selectedTheme', theme);
+        updateActiveTheme(theme);
+        
+        // Add smooth transition
+        document.body.style.transition = 'background-color 0.3s ease, color 0.3s ease';
+        setTimeout(() => {
+            document.body.style.transition = '';
+        }, 300);
+        
+        // Show toast notification
+        if (typeof toastr !== 'undefined') {
+            const themeNames = { light: 'Light', dark: 'Dark' };
+            toastr.success(`Switched to ${themeNames[theme]} theme`);
+        }
+    }
+    
+    // Handle theme button clicks
+    themeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const themeValue = this.getAttribute('data-theme-value');
+            setTheme(themeValue);
+        });
+    });
+    
+    // Initialize theme on page load (default to light if no saved theme)
+    const savedTheme = localStorage.getItem('selectedTheme') || 'light';
+    setTheme(savedTheme);
+});
+</script>

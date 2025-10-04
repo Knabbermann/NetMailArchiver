@@ -17,6 +17,13 @@ namespace NetMailArchiver.Web.Pages.ImapConfigs
         public void OnGet()
         {
             ImapInformations = context.ImapInformations.ToList();
+            
+            // Calculate EmailCount and AttachmentCount for each IMAP configuration
+            foreach (var imapInformation in ImapInformations)
+            {
+                imapInformation.EmailCount = context.Emails.Count(x => x.ImapInformationId.Equals(imapInformation.Id));
+                imapInformation.AttachmentCount = context.Attachments.Count(x => x.Email.ImapInformationId.Equals(imapInformation.Id));
+            }
         }
 
         public IActionResult OnPost(string id)

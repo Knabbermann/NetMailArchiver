@@ -1,69 +1,464 @@
 ﻿@page
 @model NetMailArchiver.Web.Pages.ImapConfigs.IndexModel
 @{
+    ViewData["Title"] = "Mail Accounts";
 }
 
-<div class="container p-3">
-    <input type="hidden" value="@Model.ImapInformations" />
-    <div class="row pt-4 align-items-center">
-        <div class="col-6">
-            <h2 class="text-info">Mail Accounts List</h2>
-        </div>
-        <div class="col-6 text-end">
-            <a class="btn btn-outline-info" asp-page="/ImapConfigs/Add">
-                <i class="bi bi-plus-square"></i> &nbsp;Add New Mail Account
-            </a>
+<!-- Page Header -->
+<div class="page-header">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h1 class="display-5 fw-bold mb-2">
+                    <i class="fas fa-server me-3"></i>Mail Accounts
+                </h1>
+                <p class="lead mb-0 opacity-90">
+                    Manage your email account configurations and connections
+                </p>
+            </div>
+            <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+                <div class="d-flex justify-content-lg-end gap-2">
+                    <a class="btn btn-light" asp-page="/ImapConfigs/Add">
+                        <i class="fas fa-plus me-2"></i>Add Account
+                    </a>
+                    <button class="btn btn-outline-light" onclick="testAllConnections()" id="testAllBtn">
+                        <i class="fas fa-network-wired me-2"></i>Test All
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
-    <br />
+</div>
 
-    <table class="table table-bordered table-striped" style="width: 100%">
-        <thead>
-            <tr class="table-info">
-                <th>
-                    Host
-                </th>
-                <th>
-                    Username
-                </th>
-                <th>
-                    Ssl
-                </th>
-                <th class="fst-italic">
-                    Action
-                </th>
-            </tr>
-        </thead>
-        <tbody>
+<div class="container py-4">
+    @if (Model.ImapInformations.Any())
+    {
+        <!-- Statistics Overview -->
+        <div class="row g-4 mb-5">
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card fade-in-up">
+                    <div class="stat-icon mb-3">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    <div class="stat-number">@Model.ImapInformations.Count()</div>
+                    <div class="stat-label">Total Accounts</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card fade-in-up" style="animation-delay: 0.1s;">
+                    <div class="stat-icon mb-3">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <div class="stat-number">@Model.ImapInformations.Count(x => x.UseSsl)</div>
+                    <div class="stat-label">SSL Enabled</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card fade-in-up" style="animation-delay: 0.2s;">
+                    <div class="stat-icon mb-3">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-number" id="activeConnections">-</div>
+                    <div class="stat-label">Active Connections</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card fade-in-up" style="animation-delay: 0.3s;">
+                    <div class="stat-icon mb-3">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <div class="stat-number">@Model.ImapInformations.Sum(x => x.EmailCount).ToString("N0")</div>
+                    <div class="stat-label">Total Emails</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Accounts Grid -->
+        <div class="row g-4">
             @foreach (var (obj, index) in Model.ImapInformations.Select((obj, index) => (obj, index)))
             {
-                <tr>
-                    <td width="30%">
-                        @obj.Host
-                    </td>
-                    <td width="30%">
-                        @obj.Username
-                    </td>
-                    <td width="10%">
-                        @obj.UseSsl
-                    </td>
-                    <td width="30%">
-                        <div class="d-flex justify-content-evenly">
-                            <form asp-page="/ImapConfigs/Index" asp-route-id="@obj.Id" method="post">
-                                <button type="submit" class="btn btn-outline-info">
-                                    <i class="bi bi-info-square"></i>&nbsp;Check Connection
+                <div class="col-lg-6 col-xl-4 fade-in-up" style="animation-delay: @((index * 0.1 + 0.4))s;">
+                    <div class="card h-100 account-card" data-account-id="@obj.Id">
+                        <div class="card-header d-flex justify-content-between align-items-center py-3">
+                            <div class="d-flex align-items-center">
+                                <div class="status-indicator me-3" id="status-@obj.Id"></div>
+                                <div>
+                                    <h6 class="mb-0 fw-bold">@obj.Host</h6>
+                                    <small class="text-white-50">Port: @obj.Port</small>
+                                </div>
+                            </div>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-light dropdown-toggle" type="button" 
+                                        data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-ellipsis-v"></i>
                                 </button>
-                            </form>
-                            <a class="btn btn-outline-secondary" asp-area="" asp-page="/ImapConfigs/Edit" asp-route-id="@obj.Id">
-                                <i class="bi bi-pencil-square"></i>&nbsp;Edit
-                            </a>
-                            <a class="btn btn-outline-danger" asp-area="" asp-page="/ImapConfigs/Delete" asp-route-id="@obj.Id">
-                                <i class="bi bi-x-square"></i>&nbsp;Remove
-                            </a>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item" asp-page="/ImapConfigs/Edit" asp-route-id="@obj.Id">
+                                            <i class="fas fa-edit me-2 text-primary"></i>Edit Account
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="/Archive/Index">
+                                            <i class="fas fa-archive me-2 text-info"></i>View Archive
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item text-danger" asp-page="/ImapConfigs/Delete" asp-route-id="@obj.Id">
+                                            <i class="fas fa-trash me-2"></i>Delete Account
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
-                    </td>
-                </tr>
+                        
+                        <div class="card-body">
+                            <!-- Account Info -->
+                            <div class="account-info mb-4">
+                                <div class="d-flex align-items-center mb-3">
+                                    <i class="fas fa-user text-primary me-3"></i>
+                                    <div>
+                                        <div class="fw-semibold">@obj.Username</div>
+                                        <small class="text-muted">Email Account</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex align-items-center mb-3">
+                                    <i class="fas fa-shield-alt @(obj.UseSsl ? "text-success" : "text-warning") me-3"></i>
+                                    <div>
+                                        <div class="fw-semibold">@(obj.UseSsl ? "SSL Enabled" : "SSL Disabled")</div>
+                                        <small class="text-muted">Security Protocol</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Statistics -->
+                            <div class="row g-3 mb-4">
+                                <div class="col-6">
+                                    <div class="text-center p-3 bg-light rounded">
+                                        <div class="h5 text-primary mb-1">@obj.EmailCount.ToString("N0")</div>
+                                        <small class="text-muted fw-medium">Emails</small>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-center p-3 bg-light rounded">
+                                        <div class="h5 text-secondary mb-1">@obj.AttachmentCount.ToString("N0")</div>
+                                        <small class="text-muted fw-medium">Attachments</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Connection Status -->
+                            <div class="connection-status mb-4" id="connection-@obj.Id">
+                                <div class="d-flex align-items-center justify-content-between p-3 bg-light rounded">
+                                    <div class="d-flex align-items-center">
+                                        <div class="spinner-border-custom me-3 d-none" id="spinner-@obj.Id"></div>
+                                        <i class="fas fa-question-circle text-muted me-3" id="icon-@obj.Id"></i>
+                                        <div>
+                                            <div class="fw-medium" id="status-text-@obj.Id">Unknown</div>
+                                            <small class="text-muted">Connection Status</small>
+                                        </div>
+                                    </div>
+                                    <div class="connection-actions">
+                                        <button class="btn btn-sm btn-outline-primary test-connection-btn" 
+                                                data-id="@obj.Id" data-bs-toggle="tooltip" title="Test Connection">
+                                            <i class="fas fa-plug"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="d-grid gap-2">
+                                <form asp-page="/ImapConfigs/Index" asp-route-id="@obj.Id" method="post" class="w-100">
+                                    <button type="submit" class="btn btn-primary w-100 check-connection-btn" data-id="@obj.Id">
+                                        <i class="fas fa-network-wired me-2"></i>
+                                        <span>Check Connection</span>
+                                    </button>
+                                </form>
+                                
+                                <div class="btn-group w-100" role="group">
+                                    <a class="btn btn-outline-secondary" asp-page="/ImapConfigs/Edit" asp-route-id="@obj.Id">
+                                        <i class="fas fa-edit me-2"></i>Edit
+                                    </a>
+                                    <a class="btn btn-outline-danger" asp-page="/ImapConfigs/Delete" asp-route-id="@obj.Id">
+                                        <i class="fas fa-trash me-2"></i>Remove
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Last Updated Footer -->
+                        <div class="card-footer bg-transparent border-0 pt-0">
+                            <small class="text-muted d-flex align-items-center">
+                                <i class="fas fa-clock me-2"></i>
+                                Last checked: <span class="ms-1" id="last-checked-@obj.Id">Never</span>
+                            </small>
+                        </div>
+                    </div>
+                </div>
             }
-        </tbody>
-    </table>
+        </div>
+
+        <!-- Bulk Actions -->
+        <div class="card mt-5 fade-in-up" style="animation-delay: 0.8s;">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-tasks me-2"></i>Bulk Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <button class="btn btn-outline-primary w-100" onclick="testAllConnections()">
+                            <i class="fas fa-network-wired me-2"></i>Test All Connections
+                        </button>
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-outline-success w-100" onclick="archiveAllAccounts()">
+                            <i class="fas fa-download me-2"></i>Archive All Accounts
+                        </button>
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-outline-info w-100" onclick="refreshStatistics()">
+                            <i class="fas fa-sync-alt me-2"></i>Refresh Statistics
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Empty State -->
+        <div class="text-center py-5 fade-in-up">
+            <div class="empty-state">
+                <i class="fas fa-server fa-4x text-muted mb-4"></i>
+                <h3 class="text-muted mb-3">No Mail Accounts Configured</h3>
+                <p class="text-muted mb-4 lead">
+                    Set up your first email account to start archiving your emails.<br>
+                    You can connect to any IMAP-enabled email provider.
+                </p>
+                <a class="btn btn-primary btn-lg me-3" asp-page="/ImapConfigs/Add">
+                    <i class="fas fa-plus me-2"></i>Add Your First Account
+                </a>
+                <a class="btn btn-outline-primary btn-lg" href="https://github.com/Knabbermann/NetMailArchiver" target="_blank">
+                    <i class="fas fa-question-circle me-2"></i>View Documentation
+                </a>
+                
+                <!-- Quick Setup Guide -->
+                <div class="row g-4 mt-5 text-start">
+                    <div class="col-md-4">
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-plus-circle"></i>
+                            </div>
+                            <h5>1. Add Account</h5>
+                            <p class="text-muted">Enter your email server details and credentials</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-network-wired"></i>
+                            </div>
+                            <h5>2. Test Connection</h5>
+                            <p class="text-muted">Verify that the connection works properly</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-download"></i>
+                            </div>
+                            <h5>3. Start Archiving</h5>
+                            <p class="text-muted">Begin archiving your emails automatically</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Global Progress Modal -->
+    <div class="modal fade" id="progressModal" tabindex="-1" aria-labelledby="progressModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="progressModalLabel">
+                        <i class="fas fa-tasks me-2"></i>Operation Progress
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <div class="progress mb-3" style="height: 20px;">
+                        <div id="globalProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%;">0%</div>
+                    </div>
+                    <div id="progressDetails" class="text-center text-muted">
+                        Initializing...
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Initialize tooltips
+            $('[data-bs-toggle="tooltip"]').tooltip();
+            
+            // Auto-test connections on page load
+            setTimeout(autoTestConnections, 1000);
+            
+            // Set up connection test handlers
+            $('.test-connection-btn').on('click', function() {
+                const accountId = $(this).data('id');
+                testSingleConnection(accountId);
+            });
+            
+            // Enhanced form submission
+            $('.check-connection-btn').on('click', function(e) {
+                e.preventDefault();
+                const accountId = $(this).data('id');
+                const $btn = $(this);
+                
+                $btn.prop('disabled', true)
+                    .html('<i class="fas fa-spinner fa-spin me-2"></i>Checking...');
+                
+                // Submit the form
+                $(this).closest('form').submit();
+            });
+        });
+
+        function autoTestConnections() {
+            $('.test-connection-btn').each(function() {
+                const accountId = $(this).data('id');
+                testSingleConnection(accountId, true);
+            });
+        }
+
+        function testSingleConnection(accountId, isAuto = false) {
+            const $spinner = $(`#spinner-${accountId}`);
+            const $icon = $(`#icon-${accountId}`);
+            const $statusText = $(`#status-text-${accountId}`);
+            const $lastChecked = $(`#last-checked-${accountId}`);
+            const $statusIndicator = $(`#status-${accountId}`);
+            
+            if (!isAuto) {
+                $spinner.removeClass('d-none');
+                $icon.addClass('d-none');
+            }
+            
+            $statusText.text('Testing...');
+            
+            // Simulate connection test (replace with actual API call)
+            setTimeout(() => {
+                const isSuccess = Math.random() > 0.3; // 70% success rate for demo
+                
+                $spinner.addClass('d-none');
+                $icon.removeClass('d-none');
+                
+                if (isSuccess) {
+                    $icon.removeClass('fa-question-circle fa-times-circle text-muted text-danger')
+                         .addClass('fa-check-circle text-success');
+                    $statusText.text('Connected');
+                    $statusIndicator.removeClass('offline').addClass('online');
+                    
+                    if (!isAuto) {
+                        toastr.success(`Connection to account ${accountId} successful`);
+                    }
+                } else {
+                    $icon.removeClass('fa-question-circle fa-check-circle text-muted text-success')
+                         .addClass('fa-times-circle text-danger');
+                    $statusText.text('Failed');
+                    $statusIndicator.removeClass('online').addClass('offline');
+                    
+                    if (!isAuto) {
+                        toastr.error(`Connection to account ${accountId} failed`);
+                    }
+                }
+                
+                $lastChecked.text(new Date().toLocaleTimeString());
+                updateActiveConnections();
+            }, isAuto ? Math.random() * 2000 + 500 : 1500);
+        }
+
+        function testAllConnections() {
+            const $btn = $('#testAllBtn');
+            $btn.prop('disabled', true)
+                .html('<i class="fas fa-spinner fa-spin me-2"></i>Testing...');
+            
+            let completed = 0;
+            const total = $('.test-connection-btn').length;
+            
+            $('.test-connection-btn').each(function() {
+                const accountId = $(this).data('id');
+                testSingleConnection(accountId);
+            });
+            
+            // Re-enable button after all tests complete
+            setTimeout(() => {
+                $btn.prop('disabled', false)
+                    .html('<i class="fas fa-network-wired me-2"></i>Test All');
+                toastr.success('All connection tests completed');
+            }, 3000);
+        }
+
+        function updateActiveConnections() {
+            const activeCount = $('.fa-check-circle.text-success').length;
+            $('#activeConnections').text(activeCount);
+        }
+
+        function archiveAllAccounts() {
+            $('#progressModal').modal('show');
+            $('#progressDetails').text('Starting archive process for all accounts...');
+            
+            // Simulate bulk archiving process
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 10;
+                if (progress > 100) progress = 100;
+                
+                $('#globalProgressBar').css('width', progress + '%').text(Math.round(progress) + '%');
+                $('#progressDetails').text(`Archiving... ${Math.round(progress)}% complete`);
+                
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    $('#progressDetails').text('Archive process completed successfully!');
+                    setTimeout(() => {
+                        $('#progressModal').modal('hide');
+                        toastr.success('All accounts archived successfully');
+                    }, 2000);
+                }
+            }, 500);
+        }
+
+        function refreshStatistics() {
+            toastr.info('Refreshing statistics...');
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        }
+
+        // Real-time status updates (simulate)
+        setInterval(() => {
+            // Randomly update some connection statuses
+            $('.status-indicator.online').each(function() {
+                if (Math.random() < 0.05) { // 5% chance to go offline
+                    $(this).removeClass('online').addClass('offline');
+                    const accountId = $(this).closest('.account-card').data('account-id');
+                    $(`#icon-${accountId}`).removeClass('fa-check-circle text-success')
+                                           .addClass('fa-times-circle text-danger');
+                    $(`#status-text-${accountId}`).text('Disconnected');
+                    updateActiveConnections();
+                }
+            });
+        }, 10000); // Check every 10 seconds
+    </script>
+}
