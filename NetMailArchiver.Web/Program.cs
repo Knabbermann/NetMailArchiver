@@ -8,7 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql("Host=192.168.178.28;Database=NetMailArchiver;Username=postgres;Password=postgres",
+    options.UseNpgsql("Host=192.168.178.220;Database=NetMailArchiver;Username=postgres;Password=postgres",
         b => b.MigrationsAssembly("NetMailArchiver.Web"))
     // Add memory optimization settings for Entity Framework
     .EnableServiceProviderCaching(false) // Disable service provider caching to reduce memory usage

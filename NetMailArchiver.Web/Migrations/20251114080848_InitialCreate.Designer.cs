@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NetMailArchiver.Web.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250813205906_InitialCreate")]
+    [Migration("20251114080848_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
