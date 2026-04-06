@@ -16,23 +16,15 @@ namespace NetMailArchiver.Services
 
         public void ConnectAndAuthenticate()
         {
-            try
+            if (_client is { IsConnected: true, IsAuthenticated: true })
             {
-                if (_client is { IsConnected: true, IsAuthenticated: true })
-                {
-                    return;
-                }
-
-                _client.Connect(imapInformation.Host, imapInformation.Port,
-                    imapInformation.UseSsl ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls);
-
-                _client.Authenticate(imapInformation.Username, imapInformation.Password);
-
+                return;
             }
-            catch (Exception ex)
-            {
-                throw;
-            }
+
+            _client.Connect(imapInformation.Host, imapInformation.Port,
+                imapInformation.UseSsl ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls);
+
+            _client.Authenticate(imapInformation.Username, imapInformation.Password);
         }
 
         public bool IsConnectedAndAuthenticated()

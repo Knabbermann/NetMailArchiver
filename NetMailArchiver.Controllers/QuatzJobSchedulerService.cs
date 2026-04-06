@@ -46,7 +46,7 @@ namespace NetMailArchiver.Services
                     .Build();
 
                 await _scheduler.ScheduleJob(job, trigger, cancellationToken);
-                logger.LogInformation($"Scheduled job for IMAP-ID {imap.Id} with interval {imap.ArchiveInterval}.");
+                logger.LogInformation("Scheduled job for IMAP-ID {ImapId} with interval {ArchiveInterval}.", imap.Id, imap.ArchiveInterval);
             }
         }
 

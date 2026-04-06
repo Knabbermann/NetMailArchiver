@@ -20,7 +20,7 @@ namespace NetMailArchiver.Services
             var imapInfo = await context.ImapInformations.SingleOrDefaultAsync(x => x.Id == imapId);
             if (imapInfo == null)
             {
-                logger.LogError($"IMAP Information mit ID {imapId} nicht gefunden.");
+                logger.LogError("IMAP Information mit ID {ImapId} nicht gefunden.", imapId);
                 return;
             }
 
@@ -28,7 +28,7 @@ namespace NetMailArchiver.Services
             progressService.SetJobRunning(imapIdString, true);
             progressService.SetProgress(imapIdString, 0);
 
-            logger.LogInformation($"Starte Archivierung für IMAP-ID {imapId}");
+            logger.LogInformation("Starte Archivierung für IMAP-ID {ImapId}", imapId);
             
             using var imapController = new ImapService(archiveLockService, imapInfo, context);
             
