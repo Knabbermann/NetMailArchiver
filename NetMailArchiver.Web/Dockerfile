@@ -11,6 +11,7 @@ WORKDIR /src
 COPY ["NetMailArchiver.Web/NetMailArchiver.Web.csproj", "NetMailArchiver.Web/"]
 COPY ["NetMailArchiver.Controllers/NetMailArchiver.Services.csproj", "NetMailArchiver.Controllers/"]
 COPY ["NetMailArchiver.DataAccess/NetMailArchiver.DataAccess.csproj", "NetMailArchiver.DataAccess/"]
+COPY ["NetMailArchiver.Models/NetMailArchiver.Models.csproj", "NetMailArchiver.Models/"]
 RUN dotnet restore "NetMailArchiver.Web/NetMailArchiver.Web.csproj"
 
 # Restliche Dateien kopieren
