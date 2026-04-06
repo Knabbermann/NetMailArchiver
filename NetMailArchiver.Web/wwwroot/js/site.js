@@ -246,7 +246,7 @@ const NetMailArchiver = {
         this.setButtonLoading = (button, loading) => {
             if (loading) {
                 button.disabled = true;
-                const originalText = button.innerHTML;
+                const originalText = button.textContent;
                 button.setAttribute('data-original-text', originalText);
                 button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Loading...';
                 button.classList.add('loading');
@@ -254,7 +254,7 @@ const NetMailArchiver = {
                 button.disabled = false;
                 const originalText = button.getAttribute('data-original-text');
                 if (originalText) {
-                    button.innerHTML = originalText;
+                    button.textContent = originalText;
                 }
                 button.classList.remove('loading');
             }
