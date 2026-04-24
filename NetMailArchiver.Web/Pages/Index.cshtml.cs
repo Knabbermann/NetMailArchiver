@@ -15,6 +15,8 @@ namespace NetMailArchiver.Web.Pages
         : PageModel
     {
         public IEnumerable<ImapInformation> ImapInformations { get; set; }
+        public IEnumerable<Email> FavoriteEmails { get; set; }
+        public IEnumerable<Email> FollowUpEmails { get; set; }
 
         public void OnGet()
         {
@@ -24,6 +26,9 @@ namespace NetMailArchiver.Web.Pages
                 imapInformation.EmailCount = context.Emails.Count(x => x.ImapInformationId.Equals(imapInformation.Id));
                 imapInformation.AttachmentCount = context.Attachments.Count(x => x.Email.ImapInformationId.Equals(imapInformation.Id));
             }
+
+            FavoriteEmails = context.Emails.Where(x => x.IsFavorite).OrderByDescending(x => x.Date).Take(10).ToList();
+            FollowUpEmails = context.Emails.Where(x => x.IsFollowUp).OrderByDescending(x => x.Date).Take(10).ToList();
         }
 
         public IActionResult OnGetArchiveNewMails(string id)

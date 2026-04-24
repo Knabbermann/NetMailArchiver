@@ -1,6 +1,8 @@
 ﻿@page
 @model NetMailArchiver.Web.Pages.Archive.IndexModel
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @{
+    var token = Antiforgery.GetAndStoreTokens(HttpContext).RequestToken;
 }
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -30,6 +32,7 @@
                                     <th>Date</th>
                                     <th>From</th>
                                     <th>Subject</th>
+                                    <th width="120px" class="text-center">Markers</th>
                                     <th class="fst-italic">Action</th>
                                 </tr>
                             </thead>
@@ -76,7 +79,19 @@
                         const attachmentButton = hasAttachments
                             ? '<button class="btn btn-link downloadAttachment" data-email-id="' + email.id + '">Download Attachments</button>'
                             : '';
+
+                        const favoriteIcon = email.isFavorite 
+                            ? '<i class="fas fa-star text-warning"></i>' 
+                            : '<i class="far fa-star text-muted"></i>';
+                        const followUpIcon = email.isFollowUp 
+                            ? '<i class="fas fa-flag text-danger"></i>' 
+                            : '<i class="far fa-flag text-muted"></i>';
+
                         $tableBody.append('<tr><td>' + email.date + '</td><td>' + email.from + '</td><td>' + email.subject + '</td>' +
+                            '<td class="text-center">' +
+                            '<button class="btn btn-sm btn-link p-1 toggleFavorite" data-email-id="' + email.id + '" title="Favorit">' + favoriteIcon + '</button>' +
+                            '<button class="btn btn-sm btn-link p-1 toggleFollowUp" data-email-id="' + email.id + '" title="Zur Nachverfolgung">' + followUpIcon + '</button>' +
+                            '</td>' +
                             '<td><button class="btn btn-link openEmail" data-email-id="' + email.id + '">Open</button>' +
                             attachmentButton + '</td></tr>');
                     });
@@ -128,6 +143,58 @@
             const imapId = $(this).data('imap-id');
             const searchQuery = $('#searchInput_' + imapId).val();
             loadEmails(imapId, 1, 10, searchQuery);
+        });
+
+        $(document).on('click', '.toggleFavorite', function () {
+            const $button = $(this);
+            const emailId = $button.data('email-id');
+
+            $.ajax({
+                url: '/Archive/Index?handler=ToggleFavorite',
+                type: 'POST',
+                headers: {
+                    'RequestVerificationToken': '@token'
+                },
+                data: JSON.stringify({ emailId: emailId }),
+                contentType: 'application/json',
+                success: function (data) {
+                    const $icon = $button.find('i');
+                    if (data.isFavorite) {
+                        $icon.removeClass('far text-muted').addClass('fas text-warning');
+                    } else {
+                        $icon.removeClass('fas text-warning').addClass('far text-muted');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error toggling favorite:', error);
+                }
+            });
+        });
+
+        $(document).on('click', '.toggleFollowUp', function () {
+            const $button = $(this);
+            const emailId = $button.data('email-id');
+
+            $.ajax({
+                url: '/Archive/Index?handler=ToggleFollowUp',
+                type: 'POST',
+                headers: {
+                    'RequestVerificationToken': '@token'
+                },
+                data: JSON.stringify({ emailId: emailId }),
+                contentType: 'application/json',
+                success: function (data) {
+                    const $icon = $button.find('i');
+                    if (data.isFollowUp) {
+                        $icon.removeClass('far text-muted').addClass('fas text-danger');
+                    } else {
+                        $icon.removeClass('fas text-danger').addClass('far text-muted');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error toggling follow-up:', error);
+                }
+            });
         });
     });
 </script>

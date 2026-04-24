@@ -46,6 +46,8 @@ namespace NetMailArchiver.Web.Pages.Archive
                     Date = x.Date.ToString("yyyy-MM-dd HH:mm"),
                     x.From,
                     x.Subject,
+                    x.IsFavorite,
+                    x.IsFollowUp,
                     Attachments = x.Attachments.Select(a => new { a.Id})
                 }).ToList();
 
@@ -134,6 +136,35 @@ namespace NetMailArchiver.Web.Pages.Archive
 
                 return File(memoryStream.ToArray(), "application/zip", $"attachments_{emailId}.zip");
             }
+        }
+
+        public JsonResult OnPostToggleFavorite([FromBody] ToggleRequest request)
+        {
+            var email = _context.Emails.FirstOrDefault(x => x.Id == request.EmailId);
+            if (email != null)
+            {
+                email.IsFavorite = !email.IsFavorite;
+                _context.SaveChanges();
+                return new JsonResult(new { isFavorite = email.IsFavorite });
+            }
+            return new JsonResult(new { isFavorite = false });
+        }
+
+        public JsonResult OnPostToggleFollowUp([FromBody] ToggleRequest request)
+        {
+            var email = _context.Emails.FirstOrDefault(x => x.Id == request.EmailId);
+            if (email != null)
+            {
+                email.IsFollowUp = !email.IsFollowUp;
+                _context.SaveChanges();
+                return new JsonResult(new { isFollowUp = email.IsFollowUp });
+            }
+            return new JsonResult(new { isFollowUp = false });
+        }
+
+        public class ToggleRequest
+        {
+            public Guid EmailId { get; set; }
         }
     }
 }

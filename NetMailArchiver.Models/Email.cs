@@ -23,6 +23,10 @@ namespace NetMailArchiver.Models
 
         public string MessageId { get; set; }
 
+        public bool IsFavorite { get; set; } = false;
+
+        public bool IsFollowUp { get; set; } = false;
+
         public ICollection<Attachment>? Attachments { get; set; }
 
         public ImapInformation ImapInformation { get; set; }

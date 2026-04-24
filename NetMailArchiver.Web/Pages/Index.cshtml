@@ -30,42 +30,134 @@
 </div>
 
 <div class="container py-4">
-    <!-- Statistics Overview -->
-    <div class="row g-4 mb-5">
-        <div class="col-lg-3 col-md-6">
-            <div class="stat-card fade-in-up">
-                <div class="stat-icon mb-3">
-                    <i class="fas fa-server"></i>
+    <div class="row g-4">
+        <!-- Left Sidebar - Statistics Overview -->
+        <div class="col-lg-2 col-md-3">
+            <div class="d-flex flex-column gap-3">
+                <div class="stat-card fade-in-up">
+                    <div class="stat-icon mb-2">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    <div class="stat-number">@Model.ImapInformations.Count()</div>
+                    <div class="stat-label">Mail Accounts</div>
                 </div>
-                <div class="stat-number">@Model.ImapInformations.Count()</div>
-                <div class="stat-label">Mail Accounts</div>
+                <div class="stat-card fade-in-up" style="animation-delay: 0.1s;">
+                    <div class="stat-icon mb-2">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <div class="stat-number">@Model.ImapInformations.Sum(x => x.EmailCount)</div>
+                    <div class="stat-label">Total Emails</div>
+                </div>
+                <div class="stat-card fade-in-up" style="animation-delay: 0.2s;">
+                    <div class="stat-icon mb-2">
+                        <i class="fas fa-paperclip"></i>
+                    </div>
+                    <div class="stat-number">@Model.ImapInformations.Sum(x => x.AttachmentCount)</div>
+                    <div class="stat-label">Attachments</div>
+                </div>
+                <div class="stat-card fade-in-up" style="animation-delay: 0.3s;">
+                    <div class="stat-icon mb-2">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-number" id="activeTasks">0</div>
+                    <div class="stat-label">Active Tasks</div>
+                </div>
             </div>
         </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="stat-card fade-in-up" style="animation-delay: 0.1s;">
-                <div class="stat-icon mb-3">
-                    <i class="fas fa-envelope"></i>
+
+        <!-- Right Content Area -->
+        <div class="col-lg-10 col-md-9">
+            <!-- Favorites and Follow-Up Section -->
+            <div class="row g-4 mb-4">
+                <!-- Favorites Widget -->
+        <div class="col-lg-6">
+            <div class="card fade-in-up" style="animation-delay: 0.5s;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-star text-warning me-2"></i>Favoriten
+                    </h5>
+                    <span class="badge bg-warning">@Model.FavoriteEmails.Count()</span>
                 </div>
-                <div class="stat-number">@Model.ImapInformations.Sum(x => x.EmailCount)</div>
-                <div class="stat-label">Total Emails</div>
+                <div class="card-body p-0">
+                    @if (Model.FavoriteEmails.Any())
+                    {
+                        <div class="list-group list-group-flush" style="max-height: 400px; overflow-y: auto;">
+                            @foreach (var email in Model.FavoriteEmails)
+                            {
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between align-items-start">
+                                        <div class="flex-grow-1" style="min-width: 0;">
+                                            <h6 class="mb-1 text-truncate">@email.Subject</h6>
+                                            <p class="mb-1 text-muted small">
+                                                <i class="fas fa-user me-1"></i>@email.From
+                                            </p>
+                                            <small class="text-muted">
+                                                <i class="fas fa-clock me-1"></i>@email.Date.ToString("dd.MM.yyyy HH:mm")
+                                            </small>
+                                        </div>
+                                        <a href="/Archive/Index?handler=OpenEmail&emailId=@email.Id" target="_blank" 
+                                           class="btn btn-sm btn-outline-primary ms-2">
+                                            <i class="fas fa-external-link-alt"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4 text-muted">
+                            <i class="far fa-star fa-3x mb-3 opacity-25"></i>
+                            <p class="mb-0">Keine Favoriten markiert</p>
+                        </div>
+                    }
+                </div>
             </div>
         </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="stat-card fade-in-up" style="animation-delay: 0.2s;">
-                <div class="stat-icon mb-3">
-                    <i class="fas fa-paperclip"></i>
+
+        <!-- Follow-Up Widget -->
+        <div class="col-lg-6">
+            <div class="card fade-in-up" style="animation-delay: 0.6s;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-flag text-danger me-2"></i>Zur Nachverfolgung
+                    </h5>
+                    <span class="badge bg-danger">@Model.FollowUpEmails.Count()</span>
                 </div>
-                <div class="stat-number">@Model.ImapInformations.Sum(x => x.AttachmentCount)</div>
-                <div class="stat-label">Attachments</div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="stat-card fade-in-up" style="animation-delay: 0.3s;">
-                <div class="stat-icon mb-3">
-                    <i class="fas fa-clock"></i>
+                <div class="card-body p-0">
+                    @if (Model.FollowUpEmails.Any())
+                    {
+                        <div class="list-group list-group-flush" style="max-height: 400px; overflow-y: auto;">
+                            @foreach (var email in Model.FollowUpEmails)
+                            {
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between align-items-start">
+                                        <div class="flex-grow-1" style="min-width: 0;">
+                                            <h6 class="mb-1 text-truncate">@email.Subject</h6>
+                                            <p class="mb-1 text-muted small">
+                                                <i class="fas fa-user me-1"></i>@email.From
+                                            </p>
+                                            <small class="text-muted">
+                                                <i class="fas fa-clock me-1"></i>@email.Date.ToString("dd.MM.yyyy HH:mm")
+                                            </small>
+                                        </div>
+                                        <a href="/Archive/Index?handler=OpenEmail&emailId=@email.Id" target="_blank" 
+                                           class="btn btn-sm btn-outline-primary ms-2">
+                                            <i class="fas fa-external-link-alt"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4 text-muted">
+                            <i class="far fa-flag fa-3x mb-3 opacity-25"></i>
+                            <p class="mb-0">Keine E-Mails zur Nachverfolgung</p>
+                        </div>
+                    }
                 </div>
-                <div class="stat-number" id="activeTasks">0</div>
-                <div class="stat-label">Active Tasks</div>
             </div>
         </div>
     </div>
@@ -234,8 +326,8 @@
         </div>
     </div>
 
-    <!-- Progress Section -->
-    <div class="card mt-4 fade-in-up" id="progressSection" style="display: none; animation-delay: 0.5s;">
+            <!-- Progress Section -->
+            <div class="card mt-4 fade-in-up" id="progressSection" style="display: none; animation-delay: 0.5s;">
         <div class="card-header">
             <h5 class="mb-0">
                 <i class="fas fa-tasks me-2"></i>Archive Progress
@@ -267,7 +359,9 @@
             </div>
         </div>
     </div>
-</div>
+        </div><!-- End Right Content Area -->
+    </div><!-- End Main Row -->
+</div><!-- End Container -->
 
 @section Scripts {
     <script>
