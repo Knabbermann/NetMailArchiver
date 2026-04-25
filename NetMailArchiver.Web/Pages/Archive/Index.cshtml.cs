@@ -25,7 +25,7 @@ namespace NetMailArchiver.Web.Pages.Archive
             ImapInformations = _context.ImapInformations.ToList();
         }
 
-        public JsonResult OnGetMails([FromQuery] Guid ImapId, [FromQuery] int page, [FromQuery] int pageSize, [FromQuery] string searchQuery = "")
+        public JsonResult OnGetMails([FromQuery] Guid ImapId, [FromQuery] int page, [FromQuery] int pageSize, [FromQuery] string searchQuery = "", [FromQuery] bool searchBody = false)
         {
             if(page < 1) page = 1;
 
@@ -33,7 +33,21 @@ namespace NetMailArchiver.Web.Pages.Archive
 
             if (!string.IsNullOrEmpty(searchQuery))
             {
-                emailsQuery = emailsQuery.Where(e => e.Subject.Contains(searchQuery) || e.From.Contains(searchQuery));
+                var searchLower = searchQuery.ToLower();
+
+                if (searchBody)
+                {
+                    emailsQuery = emailsQuery.Where(e => 
+                        (e.Subject != null && e.Subject.ToLower().Contains(searchLower)) || 
+                        (e.From != null && e.From.ToLower().Contains(searchLower)) || 
+                        (e.HtmlBody != null && e.HtmlBody.ToLower().Contains(searchLower)));
+                }
+                else
+                {
+                    emailsQuery = emailsQuery.Where(e => 
+                        (e.Subject != null && e.Subject.ToLower().Contains(searchLower)) || 
+                        (e.From != null && e.From.ToLower().Contains(searchLower)));
+                }
             }
 
             var emails = emailsQuery
