@@ -1,0 +1,17 @@
+// Add this endpoint to your Program.cs or create a separate minimal API endpoint
+
+// Usage: Navigate to https://localhost:xxxxx/admin/migrate-textbody
+// This will process all existing emails and populate their TextBody field
+
+app.MapGet("/admin/migrate-textbody", async (ApplicationDbContext context) =>
+{
+    try
+    {
+        await NetMailArchiver.Web.Scripts.MigrateTextBody.RunAsync(context);
+        return Results.Ok("TextBody migration completed successfully!");
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem($"Migration failed: {ex.Message}");
+    }
+});

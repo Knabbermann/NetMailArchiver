@@ -59,6 +59,19 @@ app.UseRouting();
 
 app.UseAuthorization();
 
+app.MapGet("/admin/migrate-textbody", async (ApplicationDbContext context) =>
+{
+    try
+    {
+        await NetMailArchiver.Web.Scripts.MigrateTextBody.RunAsync(context);
+        return Results.Ok("TextBody migration completed successfully!");
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem($"Migration failed: {ex.Message}");
+    }
+});
+
 app.MapRazorPages();
 app.UseNToastNotify();
 app.Run();

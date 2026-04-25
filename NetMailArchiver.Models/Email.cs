@@ -19,6 +19,8 @@ namespace NetMailArchiver.Models
 
         public string? HtmlBody { get; set; }
 
+        public string? TextBody { get; set; }  // NEW: Pre-processed plain text for fast searching
+
         public DateTime Date { get; set; }
 
         public string MessageId { get; set; }

@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using MimeKit;
 using NetMailArchiver.DataAccess;
 using NetMailArchiver.Models;
+using System.Text.RegularExpressions;
 
 namespace NetMailArchiver.Services
 {
@@ -164,6 +165,9 @@ namespace NetMailArchiver.Services
 
         private Email CreateEmailFromMimeMessage(MimeMessage cMail)
         {
+            var htmlBody = cMail.HtmlBody;
+            var textBody = CleanHtmlToText(htmlBody);
+
             var email = new Email
             {
                 Subject = cMail.Subject,
@@ -171,7 +175,8 @@ namespace NetMailArchiver.Services
                 To = string.Join(", ", cMail.To.Select(t => t.ToString())),
                 Cc = cMail.Cc?.Any() == true ? string.Join(", ", cMail.Cc.Select(c => c.ToString())) : null,
                 Bcc = cMail.Bcc?.Any() == true ? string.Join(", ", cMail.Bcc.Select(b => b.ToString())) : null,
-                HtmlBody = cMail.HtmlBody,
+                HtmlBody = htmlBody,
+                TextBody = textBody,  // NEW: Pre-process text for fast searching
                 Date = cMail.Date.UtcDateTime,
                 MessageId = cMail.MessageId,
                 ImapInformationId = imapInformation.Id
@@ -261,6 +266,37 @@ namespace NetMailArchiver.Services
             using var memoryStream = new MemoryStream();
             attachment.Content.DecodeTo(memoryStream);
             return memoryStream.ToArray();
+        }
+
+        private string CleanHtmlToText(string? htmlBody)
+        {
+            if (string.IsNullOrWhiteSpace(htmlBody))
+                return string.Empty;
+
+            var text = htmlBody;
+
+            // Remove script tags and their content
+            text = Regex.Replace(text, @"<script[^>]*>[\s\S]*?</script>", string.Empty, RegexOptions.IgnoreCase);
+
+            // Remove style tags and their content
+            text = Regex.Replace(text, @"<style[^>]*>[\s\S]*?</style>", string.Empty, RegexOptions.IgnoreCase);
+
+            // Remove head tag and its content
+            text = Regex.Replace(text, @"<head[^>]*>[\s\S]*?</head>", string.Empty, RegexOptions.IgnoreCase);
+
+            // Remove HTML comments
+            text = Regex.Replace(text, @"<!--[\s\S]*?-->", string.Empty);
+
+            // Remove all HTML tags
+            text = Regex.Replace(text, @"<[^>]+>", string.Empty);
+
+            // Decode HTML entities
+            text = System.Net.WebUtility.HtmlDecode(text);
+
+            // Remove extra whitespace and newlines
+            text = Regex.Replace(text, @"\s+", " ").Trim();
+
+            return text;
         }
 
         public void Dispose()

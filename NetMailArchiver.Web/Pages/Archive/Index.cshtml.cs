@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 using NetMailArchiver.DataAccess;
 using NetMailArchiver.Models;
 using NToastNotify;
@@ -34,76 +35,40 @@ namespace NetMailArchiver.Web.Pages.Archive
 
             if (!string.IsNullOrEmpty(searchQuery))
             {
-                var searchLower = searchQuery.ToLower();
-
                 if (searchBody)
                 {
-                    // First, do a broad database search (includes HTML)
+                    // Use ILIKE for case-insensitive search on all fields
+                    // ILIKE works with GIN index for TextBody
                     emailsQuery = emailsQuery.Where(e => 
-                        (e.Subject != null && e.Subject.ToLower().Contains(searchLower)) || 
-                        (e.From != null && e.From.ToLower().Contains(searchLower)) || 
-                        (e.HtmlBody != null && e.HtmlBody.ToLower().Contains(searchLower)));
+                        EF.Functions.ILike(e.Subject ?? "", $"%{searchQuery}%") || 
+                        EF.Functions.ILike(e.From ?? "", $"%{searchQuery}%") || 
+                        EF.Functions.ILike(e.TextBody ?? "", $"%{searchQuery}%"));
                 }
                 else
                 {
                     emailsQuery = emailsQuery.Where(e => 
-                        (e.Subject != null && e.Subject.ToLower().Contains(searchLower)) || 
-                        (e.From != null && e.From.ToLower().Contains(searchLower)));
+                        EF.Functions.ILike(e.Subject ?? "", $"%{searchQuery}%") || 
+                        EF.Functions.ILike(e.From ?? "", $"%{searchQuery}%"));
                 }
             }
 
-            List<dynamic> emails;
-            int fetchMultiplier = 1;
-            int maxAttempts = 5;
-
-            // Keep fetching until we have enough results after filtering
-            do
-            {
-                var fetchSize = pageSize * fetchMultiplier;
-                var skipSize = (page - 1) * pageSize;
-
-                emails = emailsQuery
-                    .OrderByDescending(x => x.Date)
-                    .Skip(skipSize)
-                    .Take(fetchSize)
-                    .Select(x => new
-                    {
-                        x.Id,
-                        Date = x.Date.ToString("yyyy-MM-dd HH:mm"),
-                        x.From,
-                        x.Subject,
-                        x.IsFavorite,
-                        x.IsFollowUp,
-                        x.HtmlBody,
-                        Attachments = x.Attachments.Select(a => new { a.Id})
-                    })
-                    .ToList<dynamic>();
-
-                // If searching in body, filter out results where the search term is only in HTML tags/CSS
-                if (!string.IsNullOrEmpty(searchQuery) && searchBody)
+            // Load only necessary fields for performance
+            var emails = emailsQuery
+                .OrderByDescending(x => x.Date)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(x => new
                 {
-                    var searchLower = searchQuery.ToLower();
-                    emails = emails.Where(x => 
-                    {
-                        // Check if term is in subject or from
-                        if ((x.Subject != null && x.Subject.ToLower().Contains(searchLower)) ||
-                            (x.From != null && x.From.ToLower().Contains(searchLower)))
-                        {
-                            return true;
-                        }
-
-                        // Check if term is in cleaned body text (not just in HTML tags)
-                        var cleanedBody = CleanHtml(x.HtmlBody);
-                        return cleanedBody.ToLower().Contains(searchLower);
-                    }).ToList();
-                }
-
-                fetchMultiplier++;
-
-            } while (emails.Count < pageSize && emails.Count < emailsQuery.Count() && fetchMultiplier <= maxAttempts);
-
-            // Take only the requested page size
-            emails = emails.Take(pageSize).ToList();
+                    x.Id,
+                    Date = x.Date.ToString("yyyy-MM-dd HH:mm"),
+                    x.From,
+                    x.Subject,
+                    x.IsFavorite,
+                    x.IsFollowUp,
+                    x.TextBody,  // Use pre-processed TextBody instead of HtmlBody
+                    HasAttachments = x.Attachments.Any(),
+                    AttachmentCount = x.Attachments.Count()
+                }).ToList();
 
             var emailsWithPreview = emails.Select(x => new
             {
@@ -113,8 +78,8 @@ namespace NetMailArchiver.Web.Pages.Archive
                 Subject = !string.IsNullOrWhiteSpace(searchQuery) ? HighlightSearchTerm(x.Subject, searchQuery) : x.Subject,
                 x.IsFavorite,
                 x.IsFollowUp,
-                Preview = GetSearchPreview(x.HtmlBody, searchQuery, searchBody, 150),
-                x.Attachments
+                Preview = GetSearchPreview(x.TextBody, searchQuery, searchBody, 150),
+                Attachments = new { Count = x.AttachmentCount }
             }).ToList();
 
             var totalEmails = emailsQuery.Count();
@@ -265,13 +230,13 @@ namespace NetMailArchiver.Web.Pages.Archive
             return text;
         }
 
-        private string GetSearchPreview(string? htmlBody, string? searchQuery, bool searchBody, int maxLength = 150)
+        private string GetSearchPreview(string? textBody, string? searchQuery, bool searchBody, int maxLength = 150)
         {
-            if (string.IsNullOrWhiteSpace(htmlBody))
+            if (string.IsNullOrWhiteSpace(textBody))
                 return string.Empty;
 
-            // Clean HTML to get plain text
-            var text = CleanHtml(htmlBody);
+            // TextBody is already cleaned, no need to process HTML
+            var text = textBody;
 
             // If no search query, return normal preview
             if (string.IsNullOrWhiteSpace(searchQuery))
