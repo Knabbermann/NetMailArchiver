@@ -259,6 +259,16 @@ h1, h2, h3, h4, h5, h6 {
   filter: invert(1);
 }
 
+/* Search highlighting */
+.search-highlight {
+  background-color: #fff3cd;
+  color: #856404;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-weight: 600;
+  box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.3);
+}
+
 /* Accessibility improvements */
 @media (prefers-reduced-motion: reduce) {
   *,

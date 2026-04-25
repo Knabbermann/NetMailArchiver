@@ -105,7 +105,10 @@
                             ? '<i class="fas fa-flag text-danger"></i>' 
                             : '<i class="far fa-flag text-muted"></i>';
 
-                        $tableBody.append('<tr><td>' + email.date + '</td><td>' + email.from + '</td><td>' + email.subject + '</td>' +
+                        const subjectWithPreview = email.subject + 
+                            (email.preview ? '<br><small class="text-muted">' + email.preview + '</small>' : '');
+
+                        $tableBody.append('<tr><td>' + email.date + '</td><td>' + email.from + '</td><td>' + subjectWithPreview + '</td>' +
                             '<td class="text-center">' +
                             '<button class="btn btn-sm btn-link p-1 toggleFavorite" data-email-id="' + email.id + '" title="Favorite">' + favoriteIcon + '</button>' +
                             '<button class="btn btn-sm btn-link p-1 toggleFollowUp" data-email-id="' + email.id + '" title="Follow Up">' + followUpIcon + '</button>' +
