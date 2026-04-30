@@ -4,6 +4,14 @@ html {
   scroll-behavior: smooth;
 }
 
+.email-spinner {
+    display: none;
+}
+
+.email-spinner.visible {
+    display: flex;
+}
+
 @media (min-width: 768px) {
   html {
     font-size: 16px;

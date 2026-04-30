@@ -27,7 +27,7 @@ namespace NetMailArchiver.Web.Pages.Archive
             ImapInformations = _context.ImapInformations.ToList();
         }
 
-        public JsonResult OnGetMails([FromQuery] Guid ImapId, [FromQuery] int page, [FromQuery] int pageSize, [FromQuery] string searchQuery = "", [FromQuery] bool searchBody = false)
+        public JsonResult OnGetMails([FromQuery] Guid ImapId, [FromQuery] int page, [FromQuery] int pageSize, [FromQuery] string searchQuery = "", [FromQuery] bool searchBody = false, [FromQuery] string dateFrom = "", [FromQuery] string dateTo = "")
         {
             if(page < 1) page = 1;
 
@@ -37,8 +37,6 @@ namespace NetMailArchiver.Web.Pages.Archive
             {
                 if (searchBody)
                 {
-                    // Use ILIKE for case-insensitive search on all fields
-                    // ILIKE works with GIN index for TextBody
                     emailsQuery = emailsQuery.Where(e => 
                         EF.Functions.ILike(e.Subject ?? "", $"%{searchQuery}%") || 
                         EF.Functions.ILike(e.From ?? "", $"%{searchQuery}%") || 
@@ -50,6 +48,18 @@ namespace NetMailArchiver.Web.Pages.Archive
                         EF.Functions.ILike(e.Subject ?? "", $"%{searchQuery}%") || 
                         EF.Functions.ILike(e.From ?? "", $"%{searchQuery}%"));
                 }
+            }
+
+            if (!string.IsNullOrEmpty(dateFrom) && DateOnly.TryParse(dateFrom, out var parsedDateFrom))
+            {
+                var fromUtc = parsedDateFrom.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+                emailsQuery = emailsQuery.Where(e => e.Date >= fromUtc);
+            }
+
+            if (!string.IsNullOrEmpty(dateTo) && DateOnly.TryParse(dateTo, out var parsedDateTo))
+            {
+                var toUtc = parsedDateTo.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc);
+                emailsQuery = emailsQuery.Where(e => e.Date <= toUtc);
             }
 
             // Load only necessary fields for performance
