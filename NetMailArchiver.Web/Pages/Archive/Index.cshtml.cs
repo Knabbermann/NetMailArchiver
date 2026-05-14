@@ -27,7 +27,7 @@ namespace NetMailArchiver.Web.Pages.Archive
             ImapInformations = _context.ImapInformations.ToList();
         }
 
-        public JsonResult OnGetMails([FromQuery] Guid ImapId, [FromQuery] int page, [FromQuery] int pageSize, [FromQuery] string searchQuery = "", [FromQuery] bool searchBody = false, [FromQuery] string dateFrom = "", [FromQuery] string dateTo = "")
+        public JsonResult OnGetMails([FromQuery] Guid ImapId, [FromQuery] int page, [FromQuery] int pageSize, [FromQuery] string searchQuery = "", [FromQuery] bool searchBody = false, [FromQuery] string dateFrom = "", [FromQuery] string dateTo = "", [FromQuery] bool filterFavorite = false, [FromQuery] bool filterFollowUp = false)
         {
             if(page < 1) page = 1;
 
@@ -61,6 +61,12 @@ namespace NetMailArchiver.Web.Pages.Archive
                 var toUtc = parsedDateTo.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc);
                 emailsQuery = emailsQuery.Where(e => e.Date <= toUtc);
             }
+
+            if (filterFavorite)
+                emailsQuery = emailsQuery.Where(e => e.IsFavorite);
+
+            if (filterFollowUp)
+                emailsQuery = emailsQuery.Where(e => e.IsFollowUp);
 
             // Load only necessary fields for performance
             var emails = emailsQuery

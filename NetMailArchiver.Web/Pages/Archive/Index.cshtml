@@ -61,6 +61,14 @@
                                     <button class="btn btn-outline-secondary resetSearch w-100" data-imap-id="@imapInformation.Id">
                                         <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
                                     </button>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-outline-warning flex-fill toggleFilterFavorite" data-imap-id="@imapInformation.Id" title="Show only favorites">
+                                            <i class="far fa-star me-1"></i>Favorites
+                                        </button>
+                                        <button class="btn btn-outline-danger flex-fill toggleFilterFollowUp" data-imap-id="@imapInformation.Id" title="Show only follow-ups">
+                                            <i class="far fa-flag me-1"></i>Follow-Up
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -135,7 +143,7 @@
             });
         });
 
-        function loadEmails(imapId, page, pageSize, searchQuery, searchBody, dateFrom, dateTo) {
+        function loadEmails(imapId, page, pageSize, searchQuery, searchBody, dateFrom, dateTo, filterFavorite, filterFollowUp) {
 
             const $tableBody = $('#emailTableBody_' + imapId);
             const $currentPage = $('#currentPage_' + imapId);
@@ -150,7 +158,7 @@
             $.ajax({
                 url: '/Archive/Index?handler=Mails',
                 type: 'GET',
-                data: { ImapId: imapId, page: page, pageSize: pageSize, searchQuery: searchQuery, searchBody: searchBody, dateFrom: dateFrom || '', dateTo: dateTo || '' },
+                data: { ImapId: imapId, page: page, pageSize: pageSize, searchQuery: searchQuery, searchBody: searchBody, dateFrom: dateFrom || '', dateTo: dateTo || '', filterFavorite: filterFavorite || false, filterFollowUp: filterFollowUp || false },
                 success: function (data) {
                     $tableBody.empty();
 
@@ -197,7 +205,7 @@
         $('.accordion-button').on('click', function () {
             const imapId = $(this).attr('data-bs-target').split('_')[1];
             $('#currentPage_' + imapId).text(1);
-            loadEmails(imapId, 1, 10, '', false, '', '');
+            loadEmails(imapId, 1, 10, '', false, '', '', false, false);
         });
 
         $(document).on('click', '.prevPage', function () {
@@ -208,7 +216,9 @@
                     $('#searchInput_' + imapId).val(),
                     $('#searchBody_' + imapId).is(':checked'),
                     $('#dateFrom_' + imapId).val(),
-                    $('#dateTo_' + imapId).val());
+                    $('#dateTo_' + imapId).val(),
+                    $('[data-imap-id="' + imapId + '"].toggleFilterFavorite').hasClass('active'),
+                    $('[data-imap-id="' + imapId + '"].toggleFilterFollowUp').hasClass('active'));
             }
         });
 
@@ -219,7 +229,9 @@
                 $('#searchInput_' + imapId).val(),
                 $('#searchBody_' + imapId).is(':checked'),
                 $('#dateFrom_' + imapId).val(),
-                $('#dateTo_' + imapId).val());
+                $('#dateTo_' + imapId).val(),
+                $('[data-imap-id="' + imapId + '"].toggleFilterFavorite').hasClass('active'),
+                $('[data-imap-id="' + imapId + '"].toggleFilterFollowUp').hasClass('active'));
         });
 
         $(document).on('click', '.searchEmail', function () {
@@ -228,7 +240,9 @@
                 $('#searchInput_' + imapId).val(),
                 $('#searchBody_' + imapId).is(':checked'),
                 $('#dateFrom_' + imapId).val(),
-                $('#dateTo_' + imapId).val());
+                $('#dateTo_' + imapId).val(),
+                $('[data-imap-id="' + imapId + '"].toggleFilterFavorite').hasClass('active'),
+                $('[data-imap-id="' + imapId + '"].toggleFilterFollowUp').hasClass('active'));
         });
 
         $(document).on('click', '.clearDates', function () {
@@ -240,7 +254,9 @@
             loadEmails(imapId, 1, 10,
                 $('#searchInput_' + imapId).val(),
                 $('#searchBody_' + imapId).is(':checked'),
-                '', '');
+                '', '',
+                $('[data-imap-id="' + imapId + '"].toggleFilterFavorite').hasClass('active'),
+                $('[data-imap-id="' + imapId + '"].toggleFilterFollowUp').hasClass('active'));
         });
 
         $(document).on('click', '.resetSearch', function () {
@@ -251,7 +267,45 @@
             if (fpInstance) fpInstance.clear();
             $('#dateFrom_' + imapId).val('');
             $('#dateTo_' + imapId).val('');
-            loadEmails(imapId, 1, 10, '', false, '', '');
+            $('[data-imap-id="' + imapId + '"].toggleFilterFavorite').removeClass('active btn-warning').addClass('btn-outline-warning').find('i').removeClass('fas').addClass('far');
+            $('[data-imap-id="' + imapId + '"].toggleFilterFollowUp').removeClass('active btn-danger').addClass('btn-outline-danger').find('i').removeClass('fas').addClass('far');
+            loadEmails(imapId, 1, 10, '', false, '', '', false, false);
+        });
+
+        $(document).on('click', '.toggleFilterFavorite', function () {
+            const imapId = $(this).data('imap-id');
+            const $btn = $(this);
+            const isActive = $btn.hasClass('active');
+            if (isActive) {
+                $btn.removeClass('active btn-warning').addClass('btn-outline-warning').find('i').removeClass('fas').addClass('far');
+            } else {
+                $btn.addClass('active btn-warning').removeClass('btn-outline-warning').find('i').removeClass('far').addClass('fas');
+            }
+            loadEmails(imapId, 1, 10,
+                $('#searchInput_' + imapId).val(),
+                $('#searchBody_' + imapId).is(':checked'),
+                $('#dateFrom_' + imapId).val(),
+                $('#dateTo_' + imapId).val(),
+                !isActive,
+                $('[data-imap-id="' + imapId + '"].toggleFilterFollowUp').hasClass('active'));
+        });
+
+        $(document).on('click', '.toggleFilterFollowUp', function () {
+            const imapId = $(this).data('imap-id');
+            const $btn = $(this);
+            const isActive = $btn.hasClass('active');
+            if (isActive) {
+                $btn.removeClass('active btn-danger').addClass('btn-outline-danger').find('i').removeClass('fas').addClass('far');
+            } else {
+                $btn.addClass('active btn-danger').removeClass('btn-outline-danger').find('i').removeClass('far').addClass('fas');
+            }
+            loadEmails(imapId, 1, 10,
+                $('#searchInput_' + imapId).val(),
+                $('#searchBody_' + imapId).is(':checked'),
+                $('#dateFrom_' + imapId).val(),
+                $('#dateTo_' + imapId).val(),
+                $('[data-imap-id="' + imapId + '"].toggleFilterFavorite').hasClass('active'),
+                !isActive);
         });
 
         $(document).on('click', '.toggleFavorite', function () {
