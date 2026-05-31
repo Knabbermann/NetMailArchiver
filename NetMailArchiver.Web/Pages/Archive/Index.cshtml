@@ -308,6 +308,11 @@
                 !isActive);
         });
 
+        $(document).on('click', '.openEmail', function () {
+            const emailId = $(this).data('email-id');
+            window.open('/Archive/Index?handler=OpenEmail&emailId=' + emailId, '_blank');
+        });
+
         $(document).on('click', '.toggleFavorite', function () {
             const $button = $(this);
             const emailId = $button.data('email-id');
