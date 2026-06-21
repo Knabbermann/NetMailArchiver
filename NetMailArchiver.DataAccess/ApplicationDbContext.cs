@@ -10,6 +10,7 @@ namespace NetMailArchiver.DataAccess
         public DbSet<ImapInformation> ImapInformations { get; set; }
         public DbSet<IntegrationSettings> IntegrationSettings { get; set; }
         public DbSet<Category> Categories { get; set; }
+        public DbSet<EmailCategorizationFeedback> EmailCategorizationFeedbacks { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -73,6 +74,34 @@ namespace NetMailArchiver.DataAccess
                 .WithMany(c => c.Emails)
                 .HasForeignKey(e => e.CategoryId)
                 .OnDelete(DeleteBehavior.SetNull); // Don't delete emails when category is deleted
+
+            // EmailCategorizationFeedback configuration
+            modelBuilder.Entity<EmailCategorizationFeedback>()
+                .HasIndex(f => f.EmailFrom);
+
+            modelBuilder.Entity<EmailCategorizationFeedback>()
+                .HasIndex(f => f.EmailSubject);
+
+            modelBuilder.Entity<EmailCategorizationFeedback>()
+                .HasIndex(f => f.CreatedAt);
+
+            modelBuilder.Entity<EmailCategorizationFeedback>()
+                .HasOne(f => f.Email)
+                .WithMany()
+                .HasForeignKey(f => f.EmailId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<EmailCategorizationFeedback>()
+                .HasOne(f => f.AiSuggestedCategory)
+                .WithMany()
+                .HasForeignKey(f => f.AiSuggestedCategoryId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<EmailCategorizationFeedback>()
+                .HasOne(f => f.FinalCategory)
+                .WithMany()
+                .HasForeignKey(f => f.FinalCategoryId)
+                .OnDelete(DeleteBehavior.Restrict); // Prevent category deletion if feedback exists
         }
     }
 }

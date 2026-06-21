@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using NetMailArchiver.Services;
 using NetMailArchiver.DataAccess;
 using NetMailArchiver.Models;
+using NetMailArchiver.Web.Services;
 using NToastNotify;
 
 namespace NetMailArchiver.Web.Pages.Integrations
@@ -12,9 +13,13 @@ namespace NetMailArchiver.Web.Pages.Integrations
         ArchiveLockService archiveLockService,
         ApplicationDbContext context,
         IToastNotification toastNotification,
-        IEmailCategorizationService categorizationService)
+        IEmailCategorizationService categorizationService,
+        IOperationCancellationService cancellationService,
+        ICategorizationProgressService progressService)
         : PageModel
     {
+        private const string BulkCategorizationOperationId = "bulk-categorization";
+
         public IEnumerable<ImapInformation> ImapInformations { get; set; } = [];
 
         [BindProperty]
@@ -23,6 +28,8 @@ namespace NetMailArchiver.Web.Pages.Integrations
         public int TotalCategories { get; set; }
         public int CategorizedEmailsCount { get; set; }
         public int UncategorizedEmailsCount { get; set; }
+        public bool IsBulkCategorizationRunning { get; set; }
+        public CategorizationProgress? CurrentProgress { get; set; }
 
         public async Task OnGetAsync()
         {
@@ -58,6 +65,8 @@ namespace NetMailArchiver.Web.Pages.Integrations
                 TotalCategories = await context.Categories.CountAsync();
                 CategorizedEmailsCount = await context.Emails.CountAsync(e => e.CategoryId != null);
                 UncategorizedEmailsCount = await context.Emails.CountAsync(e => e.CategoryId == null);
+                IsBulkCategorizationRunning = cancellationService.IsOperationRunning(BulkCategorizationOperationId);
+                CurrentProgress = progressService.GetProgress(BulkCategorizationOperationId);
             }
             catch (Exception)
             {
@@ -65,6 +74,8 @@ namespace NetMailArchiver.Web.Pages.Integrations
                 TotalCategories = 0;
                 CategorizedEmailsCount = 0;
                 UncategorizedEmailsCount = 0;
+                IsBulkCategorizationRunning = false;
+                CurrentProgress = null;
                 ImapInformations = [];
                 IntegrationSettings = new IntegrationSettings
                 {
@@ -169,15 +180,67 @@ namespace NetMailArchiver.Web.Pages.Integrations
                 return RedirectToPage();
             }
 
+            if (cancellationService.IsOperationRunning(BulkCategorizationOperationId))
+            {
+                toastNotification.AddWarningToastMessage("Bulk categorization is already running!");
+                return RedirectToPage();
+            }
+
             toastNotification.AddInfoToastMessage("Email categorization started in background. This may take a while...");
 
-            // Start categorization in background (fire and forget)
+            // Start categorization in background with cancellation support
             _ = Task.Run(async () =>
             {
-                await categorizationService.CategorizeAllEmailsAsync();
+                var cancellationToken = cancellationService.GetOrCreateToken(BulkCategorizationOperationId);
+                try
+                {
+                    var progress = new Progress<CategorizationProgress>(p =>
+                    {
+                        progressService.UpdateProgress(BulkCategorizationOperationId, p);
+                    });
+                    await categorizationService.CategorizeAllEmailsAsync(progress, cancellationToken);
+                }
+                finally
+                {
+                    cancellationService.CompleteOperation(BulkCategorizationOperationId);
+                    progressService.ClearProgress(BulkCategorizationOperationId);
+                }
             });
 
             return RedirectToPage();
+        }
+
+        public IActionResult OnPostCancelCategorizationAsync()
+        {
+            if (!cancellationService.IsOperationRunning(BulkCategorizationOperationId))
+            {
+                toastNotification.AddWarningToastMessage("No bulk categorization is currently running!");
+                return RedirectToPage();
+            }
+
+            cancellationService.CancelOperation(BulkCategorizationOperationId);
+            toastNotification.AddSuccessToastMessage("Bulk categorization cancelled successfully!");
+
+            return RedirectToPage();
+        }
+
+        public IActionResult OnGetCategorizationStatus()
+        {
+            var isRunning = cancellationService.IsOperationRunning(BulkCategorizationOperationId);
+            var progress = progressService.GetProgress(BulkCategorizationOperationId);
+
+            return new JsonResult(new 
+            { 
+                isRunning,
+                progress = progress != null ? new
+                {
+                    totalEmails = progress.TotalEmails,
+                    processedEmails = progress.ProcessedEmails,
+                    categorizedCount = progress.CategorizedCount,
+                    failedCount = progress.FailedCount,
+                    progressPercentage = progress.ProgressPercentage
+                } : null
+            });
         }
     }
 }

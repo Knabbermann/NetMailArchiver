@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using NetMailArchiver.Services;
 using NetMailArchiver.DataAccess;
+using NetMailArchiver.Web.Services;
 using NToastNotify;
 using Quartz;
 
@@ -33,6 +34,8 @@ builder.Services.AddHostedService<QuartzStartupService>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<ArchiveLockService>();
 builder.Services.AddSingleton<IArchiveProgressService, ArchiveProgressService>();
+builder.Services.AddSingleton<IOperationCancellationService, OperationCancellationService>();
+builder.Services.AddSingleton<ICategorizationProgressService, CategorizationProgressService>();
 builder.Services.AddTransient<ArchiveJob>();
 builder.Services.AddScoped<IEmailCategorizationService, EmailCategorizationService>();
 

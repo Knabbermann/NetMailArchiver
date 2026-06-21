@@ -21,10 +21,12 @@ namespace NetMailArchiver.Web.Pages.Archive
         }
 
         public IEnumerable<ImapInformation> ImapInformations { get; set; }
+        public List<Category> AllCategories { get; set; } = new();
 
         public void OnGet()
         {
             ImapInformations = _context.ImapInformations.ToList();
+            AllCategories = _context.Categories.OrderBy(c => c.Name).ToList();
         }
 
         public JsonResult OnGetMails([FromQuery] Guid ImapId, [FromQuery] int page, [FromQuery] int pageSize, [FromQuery] string searchQuery = "", [FromQuery] bool searchBody = false, [FromQuery] string dateFrom = "", [FromQuery] string dateTo = "", [FromQuery] bool filterFavorite = false, [FromQuery] bool filterFollowUp = false)
@@ -455,11 +457,77 @@ namespace NetMailArchiver.Web.Pages.Archive
             }
         }
 
+        public async Task<IActionResult> OnPostUpdateCategoryAsync([FromBody] UpdateCategoryRequest request)
+        {
+            try
+            {
+                var email = await _context.Emails
+                    .Include(e => e.Category)
+                    .FirstOrDefaultAsync(e => e.Id == request.EmailId);
+
+                if (email == null)
+                {
+                    return new JsonResult(new { success = false, message = "Email not found" });
+                }
+
+                var newCategory = await _context.Categories.FindAsync(request.CategoryId);
+                if (newCategory == null)
+                {
+                    return new JsonResult(new { success = false, message = "Category not found" });
+                }
+
+                var oldCategoryId = email.CategoryId;
+                var oldCategoryName = email.Category?.Name;
+
+                // Update email category
+                email.CategoryId = newCategory.Id;
+
+                // Store feedback for learning (manual change)
+                var feedback = new EmailCategorizationFeedback
+                {
+                    EmailId = email.Id,
+                    AiSuggestedCategoryId = oldCategoryId, // What it was before
+                    FinalCategoryId = newCategory.Id, // What user changed it to
+                    WasManuallyChanged = true, // Important: This is a manual correction
+                    EmailFrom = email.From ?? "",
+                    EmailSubject = email.Subject ?? "",
+                    Confidence = null, // No AI confidence for manual changes
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.EmailCategorizationFeedbacks.Add(feedback);
+
+                await _context.SaveChangesAsync();
+
+                return new JsonResult(new
+                {
+                    success = true,
+                    message = $"Category updated from '{oldCategoryName ?? "None"}' to '{newCategory.Name}'",
+                    category = new
+                    {
+                        id = newCategory.Id,
+                        name = newCategory.Name,
+                        color = newCategory.Color,
+                        icon = newCategory.Icon
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(new { success = false, message = ex.Message });
+            }
+        }
+
         private class N8nCategorizationResponse
         {
             public string CategoryName { get; set; } = string.Empty;
             public double Confidence { get; set; }
             public string Reasoning { get; set; } = string.Empty;
+        }
+
+        public class UpdateCategoryRequest
+        {
+            public Guid EmailId { get; set; }
+            public int CategoryId { get; set; }
         }
     }
 }

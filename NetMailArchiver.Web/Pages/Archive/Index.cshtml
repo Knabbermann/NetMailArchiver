@@ -9,6 +9,16 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
+<script>
+    // Make categories available globally
+    const allCategories = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.AllCategories.Select(c => new { 
+        id = c.Id, 
+        name = c.Name, 
+        color = c.Color, 
+        icon = c.Icon 
+    })));
+</script>
+
 <div style="padding-top: 50px"></div>
 <div class="accordion" id="imapAccordion">
     @foreach (var imapInformation in Model.ImapInformations)
@@ -179,14 +189,29 @@
                         const subjectWithPreview = email.subject + 
                             (email.preview ? '<br><small class="text-muted">' + email.preview + '</small>' : '');
 
-                        const categoryBadge = email.category 
+                        // Category dropdown
+                        const currentCategoryId = email.category ? email.category.id : null;
+                        const currentCategoryHtml = email.category 
                             ? '<span class="badge" style="background-color: ' + email.category.color + '; color: #fff;">' +
-                              '<i class="' + email.category.icon + ' me-1"></i>' + email.category.name + 
-                              '</span>'
+                              '<i class="' + email.category.icon + ' me-1"></i>' + email.category.name + '</span>'
                             : '<span class="badge bg-secondary"><i class="fas fa-inbox me-1"></i>Uncategorized</span>';
 
+                        const categoryDropdown = '<div class="dropdown d-inline-block">' +
+                            '<button class="btn btn-sm btn-link p-0 dropdown-toggle" type="button" data-bs-toggle="dropdown">' +
+                            currentCategoryHtml +
+                            '</button>' +
+                            '<ul class="dropdown-menu">' +
+                            allCategories.map(cat => 
+                                '<li><a class="dropdown-item updateCategory" href="#" data-email-id="' + email.id + '" data-category-id="' + cat.id + '">' +
+                                '<span class="badge me-2" style="background-color: ' + cat.color + '; color: #fff;">' +
+                                '<i class="' + cat.icon + '"></i></span>' + cat.name +
+                                (currentCategoryId === cat.id ? ' <i class="fas fa-check text-success ms-1"></i>' : '') +
+                                '</a></li>'
+                            ).join('') +
+                            '</ul></div>';
+
                         $tableBody.append('<tr><td>' + email.date + '</td><td>' + email.from + '</td><td>' + subjectWithPreview + '</td>' +
-                            '<td class="text-center">' + categoryBadge + '</td>' +
+                            '<td class="text-center category-cell">' + categoryDropdown + '</td>' +
                             '<td class="text-center">' +
                             '<button class="btn btn-sm btn-link p-1 toggleFavorite" data-email-id="' + email.id + '" title="Favorite">' + favoriteIcon + '</button>' +
                             '<button class="btn btn-sm btn-link p-1 toggleFollowUp" data-email-id="' + email.id + '" title="Follow Up">' + followUpIcon + '</button>' +
@@ -377,6 +402,56 @@
             });
         });
 
+        $(document).on('click', '.updateCategory', function (e) {
+            e.preventDefault();
+            const $link = $(this);
+            const emailId = $link.data('email-id');
+            const categoryId = $link.data('category-id');
+
+            $.ajax({
+                url: '/Archive/Index?handler=UpdateCategory',
+                type: 'POST',
+                headers: {
+                    'RequestVerificationToken': '@token'
+                },
+                data: JSON.stringify({ emailId: emailId, categoryId: categoryId }),
+                contentType: 'application/json',
+                success: function (data) {
+                    if (data.success) {
+                        // Update category dropdown
+                        const $row = $link.closest('tr');
+                        const $categoryCell = $row.find('.category-cell');
+
+                        const newCategoryHtml = '<span class="badge" style="background-color: ' + data.category.color + '; color: #fff;">' +
+                            '<i class="' + data.category.icon + ' me-1"></i>' + data.category.name + '</span>';
+
+                        const newDropdown = '<div class="dropdown d-inline-block">' +
+                            '<button class="btn btn-sm btn-link p-0 dropdown-toggle" type="button" data-bs-toggle="dropdown">' +
+                            newCategoryHtml +
+                            '</button>' +
+                            '<ul class="dropdown-menu">' +
+                            allCategories.map(cat =>
+                                '<li><a class="dropdown-item updateCategory" href="#" data-email-id="' + emailId + '" data-category-id="' + cat.id + '">' +
+                                '<span class="badge me-2" style="background-color: ' + cat.color + '; color: #fff;">' +
+                                '<i class="' + cat.icon + '"></i></span>' + cat.name +
+                                (categoryId === cat.id ? ' <i class="fas fa-check text-success ms-1"></i>' : '') +
+                                '</a></li>'
+                            ).join('') +
+                            '</ul></div>';
+
+                        $categoryCell.html(newDropdown);
+                        toastr.success(data.message);
+                    } else {
+                        toastr.error(data.message || 'Failed to update category');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('Error updating category:', error);
+                    toastr.error('Failed to update category');
+                }
+            });
+        });
+
         $(document).on('click', '.categorizeEmail', function () {
             const $button = $(this);
             const emailId = $button.data('email-id');
@@ -395,16 +470,29 @@
                 contentType: 'application/json',
                 success: function (data) {
                     if (data.success) {
-                        // Update category badge
+                        // Update category dropdown
                         const $row = $button.closest('tr');
-                        const $categoryCell = $row.find('td:eq(3)');
+                        const $categoryCell = $row.find('.category-cell');
 
                         if (data.category) {
-                            $categoryCell.html(
-                                '<span class="badge" style="background-color: ' + data.category.color + '; color: #fff;">' +
-                                '<i class="' + data.category.icon + ' me-1"></i>' + data.category.name + 
-                                '</span>'
-                            );
+                            const newCategoryHtml = '<span class="badge" style="background-color: ' + data.category.color + '; color: #fff;">' +
+                                '<i class="' + data.category.icon + ' me-1"></i>' + data.category.name + '</span>';
+
+                            const newDropdown = '<div class="dropdown d-inline-block">' +
+                                '<button class="btn btn-sm btn-link p-0 dropdown-toggle" type="button" data-bs-toggle="dropdown">' +
+                                newCategoryHtml +
+                                '</button>' +
+                                '<ul class="dropdown-menu">' +
+                                allCategories.map(cat =>
+                                    '<li><a class="dropdown-item updateCategory" href="#" data-email-id="' + data.category.id + '" data-category-id="' + cat.id + '">' +
+                                    '<span class="badge me-2" style="background-color: ' + cat.color + '; color: #fff;">' +
+                                    '<i class="' + cat.icon + '"></i></span>' + cat.name +
+                                    (data.category.id === cat.id ? ' <i class="fas fa-check text-success ms-1"></i>' : '') +
+                                    '</a></li>'
+                                ).join('') +
+                                '</ul></div>';
+
+                            $categoryCell.html(newDropdown);
                         }
 
                         toastr.success('Email categorized as: ' + data.category.name + ' (Confidence: ' + (data.confidence * 100).toFixed(0) + '%)');

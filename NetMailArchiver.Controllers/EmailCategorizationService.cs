@@ -45,19 +45,24 @@ namespace NetMailArchiver.Services
                 return false;
             }
 
-            // Skip if already categorized
-            if (email.CategoryId != null)
-            {
-                _logger.LogDebug("Email {EmailId} already categorized as {Category}", emailId, email.Category?.Name);
-                return true;
-            }
-
+            var oldCategory = email.Category?.Name;
             var category = await GetCategoryFromAIAsync(email);
+
             if (category != null)
             {
                 email.CategoryId = category.Id;
                 await _context.SaveChangesAsync();
-                _logger.LogInformation("Email {EmailId} categorized as {Category}", emailId, category.Name);
+
+                if (oldCategory != null)
+                {
+                    _logger.LogInformation("Email {EmailId} re-categorized from '{OldCategory}' to '{NewCategory}'", 
+                        emailId, oldCategory, category.Name);
+                }
+                else
+                {
+                    _logger.LogInformation("Email {EmailId} categorized as '{Category}'", emailId, category.Name);
+                }
+
                 return true;
             }
 
@@ -184,6 +189,9 @@ namespace NetMailArchiver.Services
                     .Select(c => c.Name)
                     .ToListAsync();
 
+                // Get learning context from similar past categorizations (RAG)
+                var learningContext = await GetLearningContextAsync(email);
+
                 // Prepare email data for AI
                 var emailData = new
                 {
@@ -193,7 +201,8 @@ namespace NetMailArchiver.Services
                     textBody = email.TextBody ?? "",
                     htmlBody = email.HtmlBody ?? "",
                     date = email.Date.ToString("yyyy-MM-dd HH:mm:ss"),
-                    availableCategories = categories // Send categories to n8n
+                    availableCategories = categories, // Send categories to n8n
+                    learningContext = learningContext // RAG: Send similar past categorizations
                 };
 
                 // Call n8n webhook
@@ -230,6 +239,21 @@ namespace NetMailArchiver.Services
                     return await GetDefaultCategoryAsync();
                 }
 
+                // Store feedback for future learning
+                var feedback = new EmailCategorizationFeedback
+                {
+                    EmailId = email.Id,
+                    AiSuggestedCategoryId = category.Id,
+                    FinalCategoryId = category.Id,
+                    WasManuallyChanged = false,
+                    EmailFrom = email.From ?? "",
+                    EmailSubject = email.Subject ?? "",
+                    Confidence = aiResponse.Confidence,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.EmailCategorizationFeedbacks.Add(feedback);
+                await _context.SaveChangesAsync();
+
                 _logger.LogDebug("AI categorized email as '{Category}' with {Confidence}% confidence",
                     category.Name, aiResponse.Confidence);
 
@@ -249,6 +273,39 @@ namespace NetMailArchiver.Services
         {
             return await _context.Categories
                 .FirstOrDefaultAsync(c => c.IsDefault);
+        }
+
+        /// <summary>
+        /// Retrieves learning context from similar past categorizations (RAG)
+        /// </summary>
+        private async Task<List<LearningContextItem>> GetLearningContextAsync(Email email, int maxResults = 10)
+        {
+            var from = email.From ?? "";
+            var subject = email.Subject ?? "";
+
+            // Get feedback from same sender or similar subjects
+            var feedbacks = await _context.EmailCategorizationFeedbacks
+                .Include(f => f.FinalCategory)
+                .Where(f => 
+                    // Same sender
+                    EF.Functions.ILike(f.EmailFrom, from) ||
+                    // Similar subject (contains key words)
+                    (subject.Length > 10 && EF.Functions.ILike(f.EmailSubject, $"%{subject.Substring(0, Math.Min(subject.Length, 20))}%"))
+                )
+                .OrderByDescending(f => f.CreatedAt)
+                .Take(maxResults)
+                .Select(f => new LearningContextItem
+                {
+                    From = f.EmailFrom,
+                    Subject = f.EmailSubject,
+                    FinalCategory = f.FinalCategory.Name,
+                    WasManuallyChanged = f.WasManuallyChanged,
+                    Confidence = f.Confidence
+                })
+                .ToListAsync();
+
+            _logger.LogDebug("Found {Count} learning context items for email from '{From}'", feedbacks.Count, from);
+            return feedbacks;
         }
 
         /// <summary>
@@ -298,5 +355,17 @@ namespace NetMailArchiver.Services
         public int FailedCount { get; set; }
         public string? ErrorMessage { get; set; }
         public bool IsSuccess => CategorizedCount > 0 && string.IsNullOrEmpty(ErrorMessage);
+    }
+
+    /// <summary>
+    /// Learning context item for RAG (Retrieval Augmented Generation)
+    /// </summary>
+    public class LearningContextItem
+    {
+        public string From { get; set; } = string.Empty;
+        public string Subject { get; set; } = string.Empty;
+        public string FinalCategory { get; set; } = string.Empty;
+        public bool WasManuallyChanged { get; set; }
+        public int? Confidence { get; set; }
     }
 }

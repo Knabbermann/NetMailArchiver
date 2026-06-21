@@ -1,0 +1,128 @@
+@page
+@model NetMailArchiver.Web.Pages.Integrations.Training.ExportModel
+@{
+    ViewData["Title"] = "Export Training Data";
+}
+
+<div class="container py-4">
+    <div class="row align-items-center mb-4">
+        <div class="col-lg-8">
+            <h2 class="mb-2">
+                <i class="fas fa-download me-2"></i>Export Training Data
+            </h2>
+            <p class="text-muted mb-0">Export categorized emails for AI model training and analysis</p>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-envelope fa-2x text-primary mb-2"></i>
+                    <h4 class="mb-0">@Model.TotalCategorizedEmails</h4>
+                    <small class="text-muted">Categorized Emails</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-database fa-2x text-info mb-2"></i>
+                    <h4 class="mb-0">@Model.TotalFeedbackEntries</h4>
+                    <small class="text-muted">Feedback Entries</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-user-edit fa-2x text-warning mb-2"></i>
+                    <h4 class="mb-0">@Model.ManualCorrections</h4>
+                    <small class="text-muted">Manual Corrections</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Options -->
+    <div class="row g-4">
+        <!-- JSONL Export for Fine-Tuning -->
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-code me-2"></i>JSONL Format
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Export data in JSONL format for AI model fine-tuning with tools like:
+                    </p>
+                    <ul>
+                        <li>OpenAI Fine-Tuning</li>
+                        <li>Ollama / Llama.cpp</li>
+                        <li>Hugging Face Transformers</li>
+                    </ul>
+                    <p class="text-muted small">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Includes prompt/response pairs formatted for training.
+                        Limited to last 1,000 entries.
+                    </p>
+                </div>
+                <div class="card-footer">
+                    <a class="btn btn-primary w-100" asp-page-handler="DownloadJsonl">
+                        <i class="fas fa-download me-2"></i>Download JSONL
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- CSV Export for Analysis -->
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-csv me-2"></i>CSV Format
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Export feedback data in CSV format for analysis with:
+                    </p>
+                    <ul>
+                        <li>Microsoft Excel</li>
+                        <li>Google Sheets</li>
+                        <li>Python Pandas</li>
+                    </ul>
+                    <p class="text-muted small">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Includes AI suggestions, manual corrections, and confidence scores.
+                        Limited to last 1,000 entries.
+                    </p>
+                </div>
+                <div class="card-footer">
+                    <a class="btn btn-success w-100" asp-page-handler="DownloadCsv">
+                        <i class="fas fa-download me-2"></i>Download CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Box -->
+    <div class="alert alert-info alert-permanent mt-4">
+        <i class="fas fa-lightbulb me-2"></i>
+        <strong>How to use this data:</strong>
+        <ul class="mb-0 mt-2">
+            <li><strong>JSONL:</strong> Use for fine-tuning AI models. Upload to OpenAI Fine-Tuning API or use with local models like Llama 3.</li>
+            <li><strong>CSV:</strong> Analyze AI performance, identify patterns, and review manual corrections.</li>
+            <li><strong>Manual Corrections:</strong> Focus on emails where users changed AI suggestions - these are valuable learning examples.</li>
+        </ul>
+    </div>
+
+    <!-- Back Button -->
+    <a class="btn btn-outline-secondary mt-3" asp-page="/Integrations/Index">
+        <i class="fas fa-arrow-left me-2"></i>Back to Integrations
+    </a>
+</div>
