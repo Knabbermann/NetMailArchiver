@@ -35,6 +35,12 @@ namespace NetMailArchiver.Models
 
         [ForeignKey("ImapInformation")]
         public Guid ImapInformationId { get; set; }
+
+        // Category relationship
+        public Category? Category { get; set; }
+
+        [ForeignKey("Category")]
+        public int? CategoryId { get; set; }
     }
 
 }

@@ -87,6 +87,7 @@
                                     <th>Date</th>
                                     <th>From</th>
                                     <th>Subject</th>
+                                    <th width="140px" class="text-center">Category</th>
                                     <th width="120px" class="text-center">Markers</th>
                                     <th class="fst-italic">Action</th>
                                 </tr>
@@ -178,12 +179,23 @@
                         const subjectWithPreview = email.subject + 
                             (email.preview ? '<br><small class="text-muted">' + email.preview + '</small>' : '');
 
+                        const categoryBadge = email.category 
+                            ? '<span class="badge" style="background-color: ' + email.category.color + '; color: #fff;">' +
+                              '<i class="' + email.category.icon + ' me-1"></i>' + email.category.name + 
+                              '</span>'
+                            : '<span class="badge bg-secondary"><i class="fas fa-inbox me-1"></i>Uncategorized</span>';
+
                         $tableBody.append('<tr><td>' + email.date + '</td><td>' + email.from + '</td><td>' + subjectWithPreview + '</td>' +
+                            '<td class="text-center">' + categoryBadge + '</td>' +
                             '<td class="text-center">' +
                             '<button class="btn btn-sm btn-link p-1 toggleFavorite" data-email-id="' + email.id + '" title="Favorite">' + favoriteIcon + '</button>' +
                             '<button class="btn btn-sm btn-link p-1 toggleFollowUp" data-email-id="' + email.id + '" title="Follow Up">' + followUpIcon + '</button>' +
                             '</td>' +
-                            '<td><button class="btn btn-link openEmail" data-email-id="' + email.id + '">Open</button>' +
+                            '<td>' +
+                            '<button class="btn btn-link openEmail" data-email-id="' + email.id + '">Open</button>' +
+                            '<button class="btn btn-sm btn-outline-primary categorizeEmail" data-email-id="' + email.id + '" title="Categorize with AI">' +
+                            '<i class="fas fa-robot me-1"></i>Categorize' +
+                            '</button>' +
                             attachmentButton + '</td></tr>');
                     });
 
@@ -361,6 +373,51 @@
                 },
                 error: function(xhr, status, error) {
                     console.error('Error toggling follow-up:', error);
+                }
+            });
+        });
+
+        $(document).on('click', '.categorizeEmail', function () {
+            const $button = $(this);
+            const emailId = $button.data('email-id');
+            const originalHtml = $button.html();
+
+            $button.prop('disabled', true)
+                .html('<i class="fas fa-spinner fa-spin me-1"></i>Categorizing...');
+
+            $.ajax({
+                url: '/Archive/Index?handler=CategorizeEmail',
+                type: 'POST',
+                headers: {
+                    'RequestVerificationToken': '@token'
+                },
+                data: JSON.stringify({ emailId: emailId }),
+                contentType: 'application/json',
+                success: function (data) {
+                    if (data.success) {
+                        // Update category badge
+                        const $row = $button.closest('tr');
+                        const $categoryCell = $row.find('td:eq(3)');
+
+                        if (data.category) {
+                            $categoryCell.html(
+                                '<span class="badge" style="background-color: ' + data.category.color + '; color: #fff;">' +
+                                '<i class="' + data.category.icon + ' me-1"></i>' + data.category.name + 
+                                '</span>'
+                            );
+                        }
+
+                        toastr.success('Email categorized as: ' + data.category.name + ' (Confidence: ' + (data.confidence * 100).toFixed(0) + '%)');
+                    } else {
+                        toastr.error(data.message || 'Failed to categorize email');
+                    }
+
+                    $button.prop('disabled', false).html(originalHtml);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error categorizing email:', error);
+                    toastr.error('Failed to categorize email');
+                    $button.prop('disabled', false).html(originalHtml);
                 }
             });
         });

@@ -8,6 +8,8 @@ namespace NetMailArchiver.DataAccess
         public DbSet<Email> Emails { get; set; }
         public DbSet<Attachment> Attachments { get; set; }
         public DbSet<ImapInformation> ImapInformations { get; set; }
+        public DbSet<IntegrationSettings> IntegrationSettings { get; set; }
+        public DbSet<Category> Categories { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -41,6 +43,36 @@ namespace NetMailArchiver.DataAccess
                 .HasColumnType("bytea");
 
             modelBuilder.Entity<ImapInformation>();
+
+            modelBuilder.Entity<IntegrationSettings>()
+                .Property(i => i.N8nWebhookUrl)
+                .HasMaxLength(500);
+
+            modelBuilder.Entity<IntegrationSettings>()
+                .Property(i => i.Description)
+                .HasMaxLength(1000);
+
+            // Category configuration
+            modelBuilder.Entity<Category>()
+                .HasIndex(c => c.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<Category>()
+                .Property(c => c.Name)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<Category>()
+                .Property(c => c.Color)
+                .IsRequired()
+                .HasMaxLength(7);
+
+            // Email-Category relationship
+            modelBuilder.Entity<Email>()
+                .HasOne(e => e.Category)
+                .WithMany(c => c.Emails)
+                .HasForeignKey(e => e.CategoryId)
+                .OnDelete(DeleteBehavior.SetNull); // Don't delete emails when category is deleted
         }
     }
 }

@@ -1,0 +1,132 @@
+@page
+@model NetMailArchiver.Web.Pages.Integrations.Categories.EditModel
+@{
+    ViewData["Title"] = "Edit Category";
+}
+
+<div class="container py-4">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <h2 class="mb-4">
+                <i class="fas fa-edit me-2"></i>Edit Category
+            </h2>
+
+            @if (Model.Category.IsSystem)
+            {
+                <div class="alert alert-warning">
+                    <i class="fas fa-shield-alt me-2"></i>
+                    <strong>System Category:</strong> This is a system category. Some settings cannot be changed.
+                </div>
+            }
+
+            <div class="card">
+                <div class="card-body">
+                    <form method="post">
+                        <input type="hidden" asp-for="Category.Id" />
+                        <input type="hidden" asp-for="Category.IsSystem" />
+                        <input type="hidden" asp-for="Category.CreatedAt" />
+
+                        <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="Category.Name" class="form-label"></label>
+                            <input asp-for="Category.Name" class="form-control" />
+                            <span asp-validation-for="Category.Name" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Category.Description" class="form-label"></label>
+                            <textarea asp-for="Category.Description" class="form-control" rows="3"></textarea>
+                            <span asp-validation-for="Category.Description" class="text-danger"></span>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Category.Color" class="form-label"></label>
+                                <div class="input-group">
+                                    <input asp-for="Category.Color" type="color" class="form-control form-control-color" />
+                                    <input asp-for="Category.Color" type="text" class="form-control" />
+                                </div>
+                                <span asp-validation-for="Category.Color" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Category.Icon" class="form-label"></label>
+                                <select asp-for="Category.Icon" class="form-select">
+                                    <option value="fa-folder">📁 Folder</option>
+                                    <option value="fa-file-invoice-dollar">💵 Invoice</option>
+                                    <option value="fa-headset">🎧 Support</option>
+                                    <option value="fa-newspaper">📰 Newsletter</option>
+                                    <option value="fa-exclamation-circle">❗ Important</option>
+                                    <option value="fa-user">👤 Personal</option>
+                                    <option value="fa-briefcase">💼 Work</option>
+                                    <option value="fa-shopping-cart">🛒 Shopping</option>
+                                    <option value="fa-plane">✈️ Travel</option>
+                                    <option value="fa-heart">❤️ Social</option>
+                                    <option value="fa-bell">🔔 Notification</option>
+                                    <option value="fa-calendar">📅 Event</option>
+                                    <option value="fa-graduation-cap">🎓 Education</option>
+                                    <option value="fa-home">🏠 Home</option>
+                                    <option value="fa-car">🚗 Automotive</option>
+                                </select>
+                                <span asp-validation-for="Category.Icon" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        @if (!Model.Category.IsSystem)
+                        {
+                            <div class="mb-4">
+                                <div class="form-check">
+                                    <input asp-for="Category.IsDefault" class="form-check-input" type="checkbox" />
+                                    <label asp-for="Category.IsDefault" class="form-check-label"></label>
+                                </div>
+                                <small class="text-muted">
+                                    The default category is used for emails that can't be categorized automatically
+                                </small>
+                            </div>
+                        }
+
+                        <!-- Preview -->
+                        <div class="alert alert-light mb-4">
+                            <strong>Preview:</strong>
+                            <div class="mt-2">
+                                <span class="badge" style="background-color: @Model.Category.Color; font-size: 1rem; padding: 0.5rem 1rem;">
+                                    <i class="fas @Model.Category.Icon me-2" id="icon-preview"></i>
+                                    <span id="name-preview">@Model.Category.Name</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Save Changes
+                            </button>
+                            <a class="btn btn-outline-secondary" asp-page="/Integrations/Categories/Index">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // Live preview
+        document.getElementById('Category_Name').addEventListener('input', function(e) {
+            document.getElementById('name-preview').textContent = e.target.value || 'Category Name';
+        });
+
+        document.getElementById('Category_Color').addEventListener('input', function(e) {
+            document.querySelector('.badge').style.backgroundColor = e.target.value;
+        });
+
+        document.getElementById('Category_Icon').addEventListener('change', function(e) {
+            const icon = document.getElementById('icon-preview');
+            icon.className = 'fas ' + e.target.value + ' me-2';
+        });
+    </script>
+}

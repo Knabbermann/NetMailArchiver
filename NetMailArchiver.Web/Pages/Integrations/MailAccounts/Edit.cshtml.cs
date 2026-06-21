@@ -1,0 +1,84 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using NetMailArchiver.DataAccess;
+using NetMailArchiver.Models;
+using NetMailArchiver.Services;
+using NToastNotify;
+
+namespace NetMailArchiver.Web.Pages.Integrations.MailAccounts
+{
+    public class EditModel : PageModel
+    {
+        private readonly ApplicationDbContext _context;
+        private readonly IToastNotification _toastNotification;
+        private readonly QuartzJobSchedulerService _jobScheduler;
+
+        public EditModel(ApplicationDbContext context,
+            IToastNotification toastNotification,
+            QuartzJobSchedulerService jobScheduler)
+        {
+            _context = context;
+            _toastNotification = toastNotification;
+            _jobScheduler = jobScheduler;
+        }
+
+        [BindProperty(SupportsGet = true)]
+        public string Id { get; set; }
+
+        [BindProperty]
+        public ImapInformation cImapInformation { get; set; }
+
+        public IActionResult OnGet()
+        {
+            if (string.IsNullOrEmpty(Id))
+            {
+                _toastNotification.AddErrorToastMessage("Id is null");
+                return RedirectToPage("/Integrations/Index");
+            }
+
+            cImapInformation = _context.ImapInformations.Single(x => x.Id.Equals(new Guid(Id)));
+
+            if (cImapInformation == null)
+            {
+                _toastNotification.AddErrorToastMessage("Object is null");
+                return RedirectToPage("/Integrations/Index");
+            }
+
+            return Page();
+        }
+
+        public IActionResult OnPost(ImapInformation cImapInformation)
+        {
+            ModelState.Remove("cImapInformation.Id");
+            ModelState.Remove("Id");
+
+            if (!ModelState.IsValid)
+            {
+                return Page();
+            }
+
+            var existing = _context.ImapInformations.SingleOrDefault(x => x.Id == cImapInformation.Id);
+
+            if (existing == null)
+            {
+                _toastNotification.AddErrorToastMessage("Mail Account not found.");
+                return RedirectToPage("/Integrations/Index");
+            }
+
+            // Update properties
+            existing.Host = cImapInformation.Host;
+            existing.Port = cImapInformation.Port;
+            existing.Username = cImapInformation.Username;
+            existing.Password = cImapInformation.Password;
+            existing.UseSsl = cImapInformation.UseSsl;
+            existing.AutoArchive = cImapInformation.AutoArchive;
+            existing.ArchiveInterval = cImapInformation.ArchiveInterval;
+
+            _context.SaveChanges();
+            _jobScheduler.ReloadScheduleAsync(CancellationToken.None);
+
+            _toastNotification.AddSuccessToastMessage("Successfully edited Mail Account.");
+            return RedirectToPage("/Integrations/Index");
+        }
+    }
+}

@@ -68,9 +68,31 @@ const NetMailArchiver = {
             });
         }, observerOptions);
 
-        // Observe all fade-in elements
-        document.querySelectorAll('.fade-in-up, .fade-in, .stat-card, .card').forEach(el => {
+        // Observe all fade-in elements, but exclude cards in tab-panes
+        document.querySelectorAll('.fade-in-up, .fade-in, .stat-card').forEach(el => {
             observer.observe(el);
+        });
+
+        // For cards NOT in tab-panes, observe them
+        document.querySelectorAll('.card').forEach(el => {
+            // Skip cards inside tab-panes - they will be animated when tab is shown
+            if (!el.closest('.tab-pane')) {
+                observer.observe(el);
+            }
+        });
+
+        // Handle tab-pane card animations when tabs are shown
+        document.addEventListener('shown.bs.tab', (event) => {
+            const targetPane = event.target.getAttribute('data-bs-target');
+            if (targetPane) {
+                const pane = document.querySelector(targetPane);
+                if (pane) {
+                    // Immediately animate all cards in the newly shown tab
+                    pane.querySelectorAll('.card').forEach(card => {
+                        card.classList.add('animate-in');
+                    });
+                }
+            }
         });
 
         // Stagger animations for groups

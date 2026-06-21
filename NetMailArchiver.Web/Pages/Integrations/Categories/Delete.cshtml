@@ -1,0 +1,72 @@
+@page
+@model NetMailArchiver.Web.Pages.Integrations.Categories.DeleteModel
+@{
+    ViewData["Title"] = "Delete Category";
+}
+
+<div class="container py-4">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <h2 class="mb-4 text-danger">
+                <i class="fas fa-trash-alt me-2"></i>Delete Category
+            </h2>
+
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Warning:</strong> You are about to delete this category. This action cannot be undone.
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h5>Category Details:</h5>
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-12">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div style="width: 40px; height: 40px; background-color: @Model.Category.Color; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
+                                        <i class="fas @Model.Category.Icon text-white"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">@Model.Category.Name</h6>
+                                        <small class="text-muted">@Model.Category.Description</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <strong>Created:</strong> @Model.Category.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                            </div>
+
+                            <div class="col-md-6">
+                                <strong>Emails in this category:</strong> 
+                                <span class="badge bg-warning text-dark">@Model.EmailCount</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (Model.EmailCount > 0)
+                    {
+                        <div class="alert alert-warning">
+                            <i class="fas fa-info-circle me-2"></i>
+                            This category contains <strong>@Model.EmailCount email(s)</strong>. 
+                            These emails will be reassigned to the default category.
+                        </div>
+                    }
+
+                    <form method="post">
+                        <input type="hidden" asp-for="Category.Id" />
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-2"></i>Yes, Delete Category
+                            </button>
+                            <a class="btn btn-outline-secondary" asp-page="/Integrations/Categories/Index">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

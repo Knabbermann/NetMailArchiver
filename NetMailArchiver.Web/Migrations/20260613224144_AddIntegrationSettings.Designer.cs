@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetMailArchiver.DataAccess;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NetMailArchiver.Web.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260613224144_AddIntegrationSettings")]
+    partial class AddIntegrationSettings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -53,53 +56,6 @@ namespace NetMailArchiver.Web.Migrations
                     b.ToTable("Attachments");
                 });
 
-            modelBuilder.Entity("NetMailArchiver.Models.Category", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Color")
-                        .IsRequired()
-                        .HasMaxLength(7)
-                        .HasColumnType("character varying(7)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<int>("EmailCount")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Icon")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<bool>("IsDefault")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsSystem")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("Categories");
-                });
-
             modelBuilder.Entity("NetMailArchiver.Models.Email", b =>
                 {
                     b.Property<Guid>("Id")
@@ -108,9 +64,6 @@ namespace NetMailArchiver.Web.Migrations
 
                     b.Property<string>("Bcc")
                         .HasColumnType("text");
-
-                    b.Property<int?>("CategoryId")
-                        .HasColumnType("integer");
 
                     b.Property<string>("Cc")
                         .HasColumnType("text");
@@ -149,8 +102,6 @@ namespace NetMailArchiver.Web.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("CategoryId");
 
                     b.HasIndex("Date");
 
@@ -239,25 +190,13 @@ namespace NetMailArchiver.Web.Migrations
 
             modelBuilder.Entity("NetMailArchiver.Models.Email", b =>
                 {
-                    b.HasOne("NetMailArchiver.Models.Category", "Category")
-                        .WithMany("Emails")
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("NetMailArchiver.Models.ImapInformation", "ImapInformation")
                         .WithMany()
                         .HasForeignKey("ImapInformationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Category");
-
                     b.Navigation("ImapInformation");
-                });
-
-            modelBuilder.Entity("NetMailArchiver.Models.Category", b =>
-                {
-                    b.Navigation("Emails");
                 });
 
             modelBuilder.Entity("NetMailArchiver.Models.Email", b =>

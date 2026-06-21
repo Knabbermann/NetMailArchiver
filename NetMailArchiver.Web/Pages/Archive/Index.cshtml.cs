@@ -70,6 +70,7 @@ namespace NetMailArchiver.Web.Pages.Archive
 
             // Load only necessary fields for performance
             var emails = emailsQuery
+                .Include(x => x.Category)
                 .OrderByDescending(x => x.Date)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
@@ -83,7 +84,13 @@ namespace NetMailArchiver.Web.Pages.Archive
                     x.IsFollowUp,
                     x.TextBody,  // Use pre-processed TextBody instead of HtmlBody
                     HasAttachments = x.Attachments.Any(),
-                    AttachmentCount = x.Attachments.Count()
+                    AttachmentCount = x.Attachments.Count(),
+                    Category = x.Category != null ? new
+                    {
+                        x.Category.Name,
+                        x.Category.Color,
+                        x.Category.Icon
+                    } : null
                 }).ToList();
 
             var emailsWithPreview = emails.Select(x => new
@@ -95,7 +102,8 @@ namespace NetMailArchiver.Web.Pages.Archive
                 x.IsFavorite,
                 x.IsFollowUp,
                 Preview = GetSearchPreview(x.TextBody, searchQuery, searchBody, 150),
-                Attachments = new { Count = x.AttachmentCount }
+                Attachments = new { Count = x.AttachmentCount },
+                x.Category
             }).ToList();
 
             var totalEmails = emailsQuery.Count();
@@ -355,6 +363,103 @@ namespace NetMailArchiver.Web.Pages.Archive
         public class ToggleRequest
         {
             public Guid EmailId { get; set; }
+        }
+
+        [HttpPost]
+        public async Task<JsonResult> OnPostCategorizeEmailAsync([FromBody] ToggleRequest request)
+        {
+            try
+            {
+                var email = await _context.Emails
+                    .Include(e => e.Category)
+                    .FirstOrDefaultAsync(e => e.Id == request.EmailId);
+
+                if (email == null)
+                {
+                    return new JsonResult(new { success = false, message = "Email not found" });
+                }
+
+                // Get integration settings
+                var integrationSettings = await _context.IntegrationSettings.FirstOrDefaultAsync();
+
+                if (integrationSettings == null || !integrationSettings.IsWebhookEnabled || string.IsNullOrWhiteSpace(integrationSettings.N8nWebhookUrl))
+                {
+                    return new JsonResult(new { success = false, message = "n8n webhook not configured. Please configure it in Integrations." });
+                }
+
+                // Get all available categories
+                var categories = await _context.Categories
+                    .Select(c => c.Name)
+                    .ToListAsync();
+
+                // Call categorization service
+                var httpClient = new HttpClient();
+                var payload = new
+                {
+                    subject = email.Subject,
+                    from = email.From,
+                    textBody = email.TextBody,
+                    htmlBody = email.HtmlBody,
+                    availableCategories = categories // Send categories to n8n!
+                };
+
+                var response = await httpClient.PostAsJsonAsync(integrationSettings.N8nWebhookUrl, payload);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return new JsonResult(new { success = false, message = "Failed to contact n8n webhook" });
+                }
+
+                var result = await response.Content.ReadFromJsonAsync<N8nCategorizationResponse>();
+
+                if (result == null || string.IsNullOrWhiteSpace(result.CategoryName))
+                {
+                    return new JsonResult(new { success = false, message = "Invalid response from AI service" });
+                }
+
+                // Find category (case-insensitive)
+                var category = await _context.Categories
+                    .FirstOrDefaultAsync(c => EF.Functions.ILike(c.Name, result.CategoryName));
+
+                if (category == null)
+                {
+                    // Fallback to default category
+                    category = await _context.Categories
+                        .FirstOrDefaultAsync(c => c.IsDefault);
+                }
+
+                if (category != null)
+                {
+                    email.CategoryId = category.Id;
+                    await _context.SaveChangesAsync();
+
+                    return new JsonResult(new
+                    {
+                        success = true,
+                        category = new
+                        {
+                            category.Name,
+                            category.Color,
+                            category.Icon
+                        },
+                        confidence = result.Confidence,
+                        reasoning = result.Reasoning
+                    });
+                }
+
+                return new JsonResult(new { success = false, message = "Category not found" });
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(new { success = false, message = ex.Message });
+            }
+        }
+
+        private class N8nCategorizationResponse
+        {
+            public string CategoryName { get; set; } = string.Empty;
+            public double Confidence { get; set; }
+            public string Reasoning { get; set; } = string.Empty;
         }
     }
 }
