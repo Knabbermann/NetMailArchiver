@@ -283,6 +283,11 @@ namespace NetMailArchiver.Services
             var from = email.From ?? "";
             var subject = email.Subject ?? "";
 
+            // Prepare search pattern for subject (client-side calculation)
+            var subjectPattern = subject.Length > 10 
+                ? $"%{subject.Substring(0, Math.Min(subject.Length, 20))}%" 
+                : "";
+
             // Get feedback from same sender or similar subjects
             var feedbacks = await _context.EmailCategorizationFeedbacks
                 .Include(f => f.FinalCategory)
@@ -290,7 +295,7 @@ namespace NetMailArchiver.Services
                     // Same sender
                     EF.Functions.ILike(f.EmailFrom, from) ||
                     // Similar subject (contains key words)
-                    (subject.Length > 10 && EF.Functions.ILike(f.EmailSubject, $"%{subject.Substring(0, Math.Min(subject.Length, 20))}%"))
+                    (!string.IsNullOrEmpty(subjectPattern) && EF.Functions.ILike(f.EmailSubject, subjectPattern))
                 )
                 .OrderByDescending(f => f.CreatedAt)
                 .Take(maxResults)
